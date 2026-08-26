@@ -1,0 +1,205 @@
+/* StartPage.css */
+
+.start-page-wrapper {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #0b1437; /* Darker navy for better contrast */
+    position: relative;
+    overflow: hidden;
+    color: white;
+    padding: 40px 20px;
+}
+
+.start-page-bg-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(99, 146, 210, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.start-page-content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 50px;
+}
+
+.start-page-header {
+    text-align: center;
+    max-width: 800px;
+}
+
+.start-page-title {
+    font-size: clamp(28px, 6vw, 44px);
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.start-page-subtitle {
+    font-size: clamp(14px, 2.5vw, 18px);
+    color: #94a3b8;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 20px;
+    margin-top: 20px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.start-page-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    width: 100%;
+    max-width: 700px;
+}
+
+@media (max-width: 640px) {
+    .start-page-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.role-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.role-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.role-card-icon-wrapper {
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    color: #cbd5e1;
+}
+
+.role-card:hover .role-card-icon-wrapper {
+    transform: scale(1.08) rotate(3deg);
+    color: white;
+}
+
+.role-card-label {
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #e2e8f0;
+}
+
+.role-card-indicator {
+    width: 0;
+    height: 4px;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    margin-top: 5px;
+}
+
+.role-card:hover .role-card-indicator {
+    width: 50px;
+}
+
+.start-page-footer {
+    position: absolute;
+    bottom: 24px;
+    font-size: 11px;
+    opacity: 0.4;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in-down {
+    animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-zoom-in {
+    animation: zoomIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .start-page-wrapper {
+        padding: 40px 16px;
+    }
+    
+    .start-page-content {
+        gap: 40px;
+    }
+
+    .start-page-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+
+    .role-card {
+        padding: 30px;
+    }
+}

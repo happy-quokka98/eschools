@@ -1,0 +1,929 @@
+/* Admin.css */
+
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-bg-hover: rgba(255, 255, 255, 0.07);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-hover: rgba(255, 255, 255, 0.18);
+    --glass-shadow: 0 15px 35px 0 rgba(0, 0, 0, 0.3);
+    --primary-gradient: linear-gradient(135deg, #6392D2 0%, #3a8dde 100%);
+    --danger-gradient: linear-gradient(135deg, #ff5252 0%, #c62828 100%);
+    --success-gradient: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+}
+
+.admin-page-wrapper {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #0b1437; /* Consistent deep navy background */
+    position: relative;
+    overflow-x: hidden;
+    color: white;
+    padding-top: 80px;
+}
+
+.admin-page-bg-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(99, 146, 210, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.admin-page-content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 1400px;
+    padding: 0 20px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+.admin-page-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.admin-page-title {
+    font-size: clamp(26px, 5vw, 42px);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 12px;
+    text-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.admin-page-subtitle {
+    font-size: clamp(13px, 2vw, 15px);
+    color: #94a3b8;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* Dashboard Grid */
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    width: 100%;
+    max-width: 1200px;
+    justify-content: center;
+    justify-items: center;
+}
+
+/* Admin Card Styling */
+.admin-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    text-align: center;
+    width: 100%;
+    min-height: 180px;
+    box-sizing: border-box;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.admin-card:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-hover);
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+.admin-card-icon-wrapper {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    transition: all 0.3s ease;
+    color: #cbd5e1;
+}
+
+.admin-card:hover .admin-card-icon-wrapper {
+    transform: scale(1.08) rotate(3deg);
+    color: white;
+}
+
+.admin-card-label {
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #f1f5f9;
+}
+
+/* Back Button styling */
+.admin-back-btn {
+    align-self: flex-start;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    padding: 10px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    text-transform: uppercase;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.admin-back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Glassmorphic Form Styles */
+.admin-form-container {
+    width: 100%;
+    max-width: 550px;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+    padding: 40px;
+    box-shadow: var(--glass-shadow);
+}
+
+.admin-form-title {
+    color: white;
+    margin-top: 0;
+    margin-bottom: 30px;
+    text-align: center;
+    font-size: 26px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.admin-form-group {
+    margin-bottom: 24px;
+}
+
+.admin-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.admin-input,
+.admin-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px 18px;
+    color: white;
+    font-size: 16px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+}
+
+.admin-input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.admin-input:focus,
+.admin-select:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #6392D2;
+    box-shadow: 0 0 14px rgba(99, 146, 210, 0.3);
+}
+
+.admin-select option {
+    background: #0b1437;
+    color: white;
+}
+
+.admin-submit-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    background: var(--primary-gradient);
+    color: white;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(99, 146, 210, 0.2);
+}
+
+.admin-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 146, 210, 0.4);
+    filter: brightness(1.1);
+}
+
+.admin-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.admin-cancel-btn {
+    background: rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.admin-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Glassmorphic Table / List Styles */
+.admin-list-container {
+    width: 100%;
+    max-width: 1200px;
+    background: rgba(255, 255, 255, 0.015);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: var(--glass-shadow);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: white;
+}
+
+.admin-table thead {
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-table th {
+    padding: 22px 20px;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #cbd5e1;
+}
+
+.admin-table td {
+    padding: 18px 20px;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Action buttons in tables */
+.admin-action-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: 0 4px;
+}
+
+.admin-action-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+}
+
+.admin-action-btn.edit {
+    color: #ffb703;
+    border-color: rgba(255, 183, 3, 0.3);
+}
+.admin-action-btn.edit:hover {
+    background: rgba(255, 183, 3, 0.15);
+}
+
+.admin-action-btn.delete {
+    color: #ff5252;
+    border-color: rgba(255, 82, 82, 0.3);
+}
+.admin-action-btn.delete:hover {
+    background: rgba(255, 82, 82, 0.15);
+}
+
+.admin-action-btn.reset {
+    color: #6392D2;
+    border-color: rgba(99, 146, 210, 0.3);
+}
+.admin-action-btn.reset:hover {
+    background: rgba(99, 146, 210, 0.15);
+}
+
+/* Filter Button and Action Button enhancements */
+.admin-filter-btn {
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.admin-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.admin-filter-btn.active {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.admin-filter-btn.active:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.admin-table-action-btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-table-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    filter: brightness(1.1);
+}
+
+/* Sub-view Header Styling */
+.admin-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 30px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.admin-view-title {
+    font-size: 30px;
+    font-weight: 800;
+    margin: 0;
+    text-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.admin-view-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-table-wrapper {
+    width: 100%;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+/* Custom Scrollbar for wrappers */
+.admin-table-wrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+/* Graphical Schedule System */
+.schedule-grid-container {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 32px;
+    padding: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+}
+
+.schedule-header-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.schedule-day-pill {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 14px;
+    border-radius: 18px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #94a3b8;
+}
+
+.schedule-row {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.schedule-time-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 18px;
+}
+
+.schedule-lesson-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 22px;
+    padding: 16px;
+    min-height: 85px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    cursor: default;
+}
+
+.schedule-lesson-card.active {
+    background: linear-gradient(135deg, rgba(99, 146, 210, 0.12) 0%, rgba(99, 146, 210, 0.03) 100%);
+    border-color: rgba(99, 146, 210, 0.25);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.schedule-lesson-card.active:hover {
+    transform: scale(1.04) translateY(-4px);
+    background: linear-gradient(135deg, rgba(99, 146, 210, 0.2) 0%, rgba(99, 146, 210, 0.06) 100%);
+    border-color: rgba(99, 146, 210, 0.4);
+    z-index: 10;
+}
+
+.schedule-subject-name {
+    font-size: 14px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.3;
+    color: #e2e8f0;
+}
+
+.schedule-empty {
+    opacity: 0.15;
+    font-size: 10px;
+    letter-spacing: 2px;
+}
+
+.admin-dashboard-card {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+/* Tab Bar Styling for Teacher Page */
+.admin-tabs {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto 32px auto;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 900px;
+    padding: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-tab-btn {
+    flex: 0 0 auto;
+    padding: 12px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-tab-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-tab-btn.active {
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.high {
+    background: rgba(76, 175, 80, 0.12);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.25);
+}
+
+.status-badge.medium {
+    background: rgba(255, 152, 0, 0.12);
+    color: #ff9800;
+    border: 1px solid rgba(255, 152, 0, 0.25);
+}
+
+.status-badge.low {
+    background: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border: 1px solid rgba(244, 67, 54, 0.25);
+}
+
+/* ----- Tutor (homeroom) subject rows ----- */
+.tutor-subject-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tutor-subject-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ----- Grade entry rows ----- */
+.grade-entry-header {
+    padding: 0 24px 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 100px 160px;
+    gap: 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+}
+
+.grade-entry-list {
+    padding: 8px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.grade-entry-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 100px 160px;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.grade-entry-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 600px) {
+    .grade-entry-header {
+        display: none;
+    }
+    .grade-entry-row {
+        grid-template-columns: minmax(0, 1fr) 60px 130px;
+        gap: 10px;
+        padding: 12px;
+    }
+    .grade-entry-list {
+        padding: 8px 12px 12px;
+    }
+}
+
+/* ----- Mobile responsive layout ----- */
+@media (max-width: 768px) {
+    .admin-page-wrapper {
+        padding-top: 64px;
+    }
+
+    .admin-page-content {
+        padding: 0 12px 24px;
+        gap: 24px;
+    }
+
+    .admin-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .admin-card {
+        padding: 20px;
+        min-height: 130px;
+        gap: 14px;
+    }
+
+    .admin-card-icon-wrapper {
+        width: 56px;
+        height: 56px;
+    }
+
+    .admin-card-label {
+        font-size: 16px;
+    }
+
+    .admin-form-container {
+        padding: 20px;
+        border-radius: 20px;
+    }
+
+    .admin-form-title {
+        font-size: 22px;
+        margin-bottom: 20px;
+    }
+
+    .admin-form-group {
+        margin-bottom: 16px;
+    }
+
+    .admin-input,
+    .admin-select {
+        padding: 12px 14px;
+        font-size: 15px;
+    }
+
+    .admin-submit-btn {
+        padding: 14px;
+        font-size: 15px;
+    }
+
+    .admin-list-container {
+        border-radius: 20px;
+    }
+
+    .admin-view-header {
+        margin-bottom: 16px;
+        gap: 12px;
+    }
+
+    .admin-view-title {
+        font-size: 24px;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 14px 12px;
+        font-size: 14px;
+    }
+
+    .admin-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-tabs {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px;
+    }
+
+    .admin-tab-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+        flex: 1 1 auto;
+    }
+
+    .admin-back-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    /* Schedule grid: keep columns but allow horizontal scroll on phones */
+    .schedule-grid-container {
+        padding: 16px;
+        border-radius: 20px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .schedule-header-grid,
+    .schedule-row {
+        grid-template-columns: 56px repeat(5, minmax(96px, 1fr));
+        gap: 8px;
+        min-width: 560px;
+    }
+
+    .schedule-day-pill {
+        font-size: 11px;
+        padding: 8px;
+        letter-spacing: 1px;
+    }
+
+    .schedule-time-slot {
+        font-size: 18px;
+    }
+
+    .schedule-lesson-card {
+        padding: 10px;
+        min-height: 64px;
+    }
+
+    .schedule-subject-name {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-page-content {
+        padding: 0 8px 20px;
+    }
+
+    .admin-card {
+        padding: 16px;
+    }
+
+    .admin-form-container {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 12px 8px;
+        font-size: 13px;
+    }
+
+    .admin-view-title {
+        font-size: 20px;
+    }
+}
+
+/* Custom styles for AdminCalendarManager */
+.calendar-table {
+    border-collapse: separate !important;
+    border-spacing: 8px !important;
+}
+
+.calendar-table th {
+    text-align: center !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-bottom: none !important;
+    border-radius: 12px;
+    padding: 14px 10px !important;
+    font-size: 13px !important;
+}
+
+.calendar-table td {
+    border-bottom: none !important;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+}
+
+.calendar-table tr:hover {
+    background: transparent !important;
+}
+
+.calendar-table td:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.calendar-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    color: #cbd5e1;
+    padding: 8px 12px;
+    font-size: 13px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.calendar-select:focus {
+    outline: none;
+    border-color: #6392D2;
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 10px rgba(99, 146, 210, 0.2);
+    color: white;
+}
+
+.calendar-select option {
+    background: #0b1437;
+    color: white;
+}
+
+
