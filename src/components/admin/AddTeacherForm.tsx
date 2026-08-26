@@ -27,8 +27,11 @@ const AddTeacherForm: React.FC<AddTeacherFormProps> = ({ onAddTeacher, onCancel 
                         <input className="admin-input" type="text" name="surname" placeholder="შეიყვანეთ გვარი" required />
                     </div>
                     <div className="admin-form-group">
-                        <label className="admin-label">მომხმარებლის ID (პ/ნ)</label>
-                        <input className="admin-input" type="text" name="user_ID" placeholder="შეიყვანეთ პირადი ნომერი" required />
+                        <label className="admin-label">პირადი ნომერი / ID (პ/ნ)</label>
+                        <input className="admin-input" type="text" name="ID" placeholder="შეიყვანეთ პირადი ნომერი" required />
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
+                          * საწყისი პაროლი ავტომატურად იქნება პირადი ნომერი (პ/ნ)
+                        </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
                         <button type="button" onClick={onCancel} className="admin-cancel-btn">

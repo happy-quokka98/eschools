@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { IoArrowBack } from 'react-icons/io5';
 
 const ArrowLeftIcon = IoArrowBack as React.FC<{ size?: number | string }>;
@@ -10,7 +9,6 @@ interface Grade {
     student_id: string;
     subject_id: string;
     class_id: string;
-    teacher_id: string;
     point: number;
     pointType: number;
     date: string;
@@ -39,7 +37,7 @@ interface DetailedGradeHistoryProps {
     selectedColor: string;
     logoutButtonStyle: React.CSSProperties;
     onBackClick: () => void;
-    classSwitcher?: React.ReactNode;
+    selectedYear?: string;
 }
 
 const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
@@ -49,7 +47,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     subjectName,
     selectedColor,
     onBackClick,
-    classSwitcher
+    selectedYear
 }) => {
     const [grades, setGrades] = useState<Grade[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -61,202 +59,14 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         if (subjectId) setSelectedSubject(subjectId);
     }, [subjectId]);
 
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-    const [selectedCellDate, setSelectedCellDate] = useState<string>('');
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [selectedGradeList, setSelectedGradeList] = useState<Grade[]>([]);
-
-    // Form states for editing a grade
-    const [editingGradeId, setEditingGradeId] = useState<string | null>(null);
-    const [editPoint, setEditPoint] = useState<string>('');
-    const [editPointType, setEditPointType] = useState<number>(2);
-    const [editComment, setEditComment] = useState<string>('');
-    const [editSubjectId, setEditSubjectId] = useState<string>('');
-    const [isNewGradeForm, setIsNewGradeForm] = useState<boolean>(false);
-    const [editLoading, setEditLoading] = useState<boolean>(false);
-    const [currentClassObj, setCurrentClassObj] = useState<any>(null);
-
-    // Fetch class details to get teacher mappings
-    useEffect(() => {
-        const fetchClassDetails = async () => {
-            try {
-                const res = await fetch('/api/classes');
-                if (res.ok) {
-                    const data = await res.json();
-                    const cls = data.find((c: any) => c._id === classId);
-                    setCurrentClassObj(cls);
-                }
-            } catch (err) {
-                console.error("Error fetching classes details:", err);
-            }
-        };
-        fetchClassDetails();
-    }, [classId]);
-
-    const parsePoint = (ptStr: string, isAbsence: boolean, isX: boolean, isCT: boolean) => {
-        if (isCT || ptStr === 'ჩთ') return -3;
-        if (isX || ptStr === 'X') return -2;
-        if (isAbsence || ptStr === 'გაცდენა') return -1;
-        if (ptStr === 'დასწრება') return -1;
-        return parseInt(ptStr, 10);
-    };
-
-    const handleUpdateGrade = async (grade: Grade) => {
-        try {
-            setEditLoading(true);
-            const isCT = editPoint === 'ჩთ';
-            const isX = editPoint === 'X';
-            const isAbsence = editPoint === 'გაცდენა';
-            const isAttendance = editPoint === 'დასწრება';
-            const numericPoint = parsePoint(editPoint, isAbsence, isX, isCT);
-
-            const payload = {
-                student_id: grade.student_id,
-                subject_id: grade.subject_id,
-                class_id: grade.class_id,
-                date: grade.date,
-                teacher_id: grade.teacher_id,
-                point: numericPoint,
-                pointType: editPointType,
-                checked: !isAbsence,
-                comment: editComment,
-                isAdmin: true,
-            };
-
-            const res = await fetch('/api/grade/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                alert(data.message || 'შეცდომა ნიშნის შენახვისას');
-                setEditLoading(false);
-                return;
-            }
-
-            // Refresh grades in local state
-            const updatedRes = await fetch(`/api/grades?class_id=${classId}`);
-            if (updatedRes.ok) {
-                const updatedData = await updatedRes.json();
-                setGrades(updatedData);
-            }
-
-            setEditingGradeId(null);
-            setEditLoading(false);
-            setEditModalOpen(false);
-        } catch (err) {
-            console.error("Error updating grade:", err);
-            alert("შეცდომა ნიშნის ჩასწორებისას");
-            setEditLoading(false);
-        }
-    };
-
-    const handleDeleteGrade = async (gradeId: string) => {
-        if (!window.confirm("ნამდვილად გსურთ ამ ნიშნის წაშლა?")) return;
-        try {
-            setEditLoading(true);
-            const res = await fetch('/api/grade/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: gradeId, date: selectedCellDate }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                alert(data.message || 'შეცდომა ნიშნის წაშლისას');
-                setEditLoading(false);
-                return;
-            }
-
-            // Refresh grades in local state
-            const updatedRes = await fetch(`/api/grades?class_id=${classId}`);
-            if (updatedRes.ok) {
-                const updatedData = await updatedRes.json();
-                setGrades(updatedData);
-            }
-
-            setEditingGradeId(null);
-            setEditLoading(false);
-            setEditModalOpen(false);
-        } catch (err) {
-            console.error("Error deleting grade:", err);
-            alert("შეცდომა წაშლისას");
-            setEditLoading(false);
-        }
-    };
-
-    const handleAddNewGrade = async () => {
-        try {
-            setEditLoading(true);
-            // Find teacher_id from class mapping
-            const classSubj = currentClassObj?.subjects?.find((s: any) => s.subject_id === editSubjectId);
-            const teacherId = classSubj?.teacher_id;
-
-            if (!teacherId) {
-                alert("ამ საგნისთვის მასწავლებელი არ არის მიბმული კლასში");
-                setEditLoading(false);
-                return;
-            }
-
-            const isCT = editPoint === 'ჩთ';
-            const isX = editPoint === 'X';
-            const isAbsence = editPoint === 'გაცდენა';
-            const isAttendance = editPoint === 'დასწრება';
-            const numericPoint = parsePoint(editPoint, isAbsence, isX, isCT);
-
-            const payload = {
-                student_id: selectedStudent?._id,
-                subject_id: editSubjectId,
-                class_id: classId,
-                date: selectedCellDate,
-                teacher_id: teacherId,
-                point: numericPoint,
-                pointType: editPointType,
-                checked: !isAbsence,
-                comment: editComment,
-                isAdmin: true,
-            };
-
-            const res = await fetch('/api/grade/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                alert(data.message || 'შეცდომა ნიშნის დამატებისას');
-                setEditLoading(false);
-                return;
-            }
-
-            // Refresh grades in local state
-            const updatedRes = await fetch(`/api/grades?class_id=${classId}`);
-            if (updatedRes.ok) {
-                const updatedData = await updatedRes.json();
-                setGrades(updatedData);
-            }
-
-            setIsNewGradeForm(false);
-            setEditLoading(false);
-            setEditModalOpen(false);
-        } catch (err) {
-            console.error("Error adding grade:", err);
-            alert("შეცდომა ნიშნის დამატებისას");
-            setEditLoading(false);
-        }
-    };
-
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const gradesRes = await fetch(`/api/grades?class_id=${classId}`);
+                let gradesUrl = `/api/grades?class_id=${classId}`;
+                if (selectedYear) {
+                    gradesUrl += `&year=${selectedYear}`;
+                }
+                const gradesRes = await fetch(gradesUrl);
                 const gradesData = await gradesRes.json();
                 setGrades(Array.isArray(gradesData) ? gradesData : []);
 
@@ -279,7 +89,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
             }
         };
         fetchData();
-    }, [classId, className]);
+    }, [classId, className, selectedYear]);
 
     if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '40px' }}>იტვირთება...</div>;
 
@@ -292,6 +102,33 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         studentDateGrades[g.student_id][g.date].push(g);
     });
 
+    const handleDeleteDay = async (dateToDelete: string) => {
+        if (!window.confirm(`დარწმუნებული ხართ, რომ გსურთ ${formatDate(dateToDelete)} (${dateToDelete}) თარიღის ყველა ნიშნის/სწრებადობის წაშლა?`)) {
+            return;
+        }
+        try {
+            const res = await fetch('/api/grade/delete-day', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: dateToDelete,
+                    class_id: classId,
+                    subject_id: selectedSubject !== 'all' ? selectedSubject : undefined,
+                    year: selectedYear
+                })
+            });
+            if (res.ok) {
+                setGrades(prev => prev.filter(g => g.date !== dateToDelete));
+                alert('დღის მონაცემები წარმატებით წაიშალა!');
+            } else {
+                const data = await res.json();
+                alert(`წაშლა ვერ მოხერხდა: ${data.message}`);
+            }
+        } catch (err) {
+            alert('დღის წაშლისას მოხდა შეცდომა');
+        }
+    };
+
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -299,15 +136,25 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
 
     const getGradeDisplay = (gradeList: Grade[]) => {
         if (gradeList.length === 0) return null;
-        const sorted = gradeList.sort((a, b) => b.pointType - a.pointType || b.point - a.point);
-        return sorted.slice(0, 3).map(g => g.point === -1 ? (g.checked ? '✓' : '✗') : g.point === -2 ? 'X' : g.point.toString()).join(', ');
+        const sorted = gradeList.sort((a, b) => b.pointType - a.pointType);
+        return sorted.slice(0, 3).map(g => {
+            const isFormative = (g as any).is_formative || (g.comment && g.comment.trim() !== '') || (g as any).point === 'განმავითარებელი' || typeof (g as any).point === 'string';
+            if (isFormative) return g.comment && g.comment.trim() !== '' ? g.comment : 'განმავითარებელი';
+            if (g.point === -1) return g.checked ? '✓' : '✗';
+            if (g.point === -2) return 'X';
+            if (g.point === -3) return 'ჩთ';
+            return g.point.toString();
+        }).join(', ');
     };
 
     const getGradeColor = (gradeList: Grade[]) => {
         if (gradeList.length === 0) return 'rgba(255,255,255,0.1)';
         const highest = gradeList.reduce((p, c) => c.pointType > p.pointType ? c : p);
+        const isFormative = (highest as any).is_formative || (highest.comment && highest.comment.trim() !== '') || (highest as any).point === 'განმავითარებელი' || typeof (highest as any).point === 'string';
+        if (isFormative) return '#f59e0b';
         if (highest.point === -1) return highest.checked ? '#4caf50' : '#f44336';
         if (highest.point === -2) return '#9c27b0';
+        if (highest.point === -3) return '#2196f3';
         if (highest.point >= 9) return '#4caf50';
         if (highest.point >= 7) return '#ff9800';
         return '#f44336';
@@ -319,11 +166,9 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                {classSwitcher ? classSwitcher : (
-                    <h2 className="admin-view-title">
-                        {className} - {subjectName || (selectedSubject !== 'all' ? subjects.find(s => s._id === selectedSubject)?.name : 'დეტალური ისტორია')}
-                    </h2>
-                )}
+                <h2 className="admin-view-title">
+                    {className} - {subjectName || (selectedSubject !== 'all' ? subjects.find(s => s._id === selectedSubject)?.name : 'დეტალური ისტორია')}
+                </h2>
                 {!subjectId && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <span className="admin-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>ფილტრი:</span>
@@ -347,50 +192,54 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                 <tr>
                                     <th style={{ minWidth: '250px', background: 'rgba(20, 25, 40, 0.95)', backdropFilter: 'blur(10px)', position: 'sticky', left: 0, zIndex: 11 }}>სახელი გვარი</th>
                                     {allDatesArr.map(date => (
-                                        <th key={date} style={{ textAlign: 'center', minWidth: '90px' }}>{formatDate(date)}</th>
+                                        <th key={date} style={{ textAlign: 'center', minWidth: '100px', verticalAlign: 'top', padding: '10px 8px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                <span>{formatDate(date)}</span>
+                                                <button
+                                                    onClick={() => handleDeleteDay(date)}
+                                                    title="დღის სრულად წაშლა"
+                                                    style={{
+                                                        background: 'rgba(239, 68, 68, 0.2)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                                                        color: '#f87171',
+                                                        borderRadius: '6px',
+                                                        padding: '2px 6px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '3px',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.4)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                                                >
+                                                წაშლა
+                                                </button>
+                                            </div>
+                                        </th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {students.length > 0 ? students.map((student, idx) => (
                                     <tr key={student._id}>
-                                        <td style={{ fontWeight: '700', color: 'white', position: 'sticky', left: 0, background: idx % 2 === 0 ? 'rgba(11, 20, 55, 0.98)' : 'rgba(22, 30, 68, 0.98)', backdropFilter: 'blur(10px)', zIndex: 1 }}>
+                                                                        <td style={{ fontWeight: '700', color: 'white', position: 'sticky', left: 0, background: idx % 2 === 0 ? 'rgba(11, 20, 55, 0.98)' : 'rgba(22, 30, 68, 0.98)', backdropFilter: 'blur(10px)', zIndex: 1 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedColor }}></div>
                                                 {student.name} {student.surname}
                                             </div>
                                         </td>
                                         {allDatesArr.map(date => {
-                                             const gradeList = studentDateGrades[student._id]?.[date] || [];
-                                             const gradeColor = getGradeColor(gradeList);
-                                             let cellBg = undefined;
-                                             let cellColor = gradeColor;
-                                             const hasSummative = gradeList.some(g => g.pointType === 3);
-                                             const hasHomework = gradeList.some(g => g.pointType === 1);
-                                             if (hasSummative) {
-                                                 cellBg = 'rgba(239, 68, 68, 0.15)'; // Soft red
-                                                 cellColor = '#ef4444'; // Red
-                                             } else if (hasHomework) {
-                                                 cellBg = 'rgba(245, 158, 11, 0.15)'; // Soft yellow
-                                                 cellColor = '#f59e0b'; // Yellow
-                                             }
-                                             return (
-                                                 <td 
-                                                     key={date} 
-                                                     onClick={() => {
-                                                         setSelectedStudent(student);
-                                                         setSelectedCellDate(date);
-                                                         setSelectedGradeList(gradeList);
-                                                         setEditingGradeId(null);
-                                                         setIsNewGradeForm(false);
-                                                         setEditModalOpen(true);
-                                                     }}
-                                                     style={{ textAlign: 'center', fontWeight: '800', backgroundColor: cellBg, color: cellColor, cursor: 'pointer' }}
-                                                 >
-                                                     {getGradeDisplay(gradeList) || '-'}
-                                                 </td>
-                                             );
-                                         })}
+                                            const gradeList = studentDateGrades[student._id]?.[date] || [];
+                                            return (
+                                                <td key={date} style={{ textAlign: 'center', fontWeight: '800', color: getGradeColor(gradeList) }}>
+                                                    {getGradeDisplay(gradeList) || '-'}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 )) : (
                                     <tr><td colSpan={allDatesArr.length + 1} style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>მოსწავლეები ვერ მოიძებნა</td></tr>
@@ -434,241 +283,6 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     </div>
                 ))}
             </div>
-
-            {/* Modal must be rendered here, inside the main return */}
-            {mounted && editModalOpen && selectedStudent && createPortal(
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    background: 'rgba(0,0,0,0.5)',
-                    zIndex: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                    <div style={{
-                        background: '#1e293b',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '16px',
-                        padding: '30px',
-                        width: '450px',
-                        maxHeight: '90vh',
-                        overflowY: 'auto',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                        color: 'white',
-                    }}>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', color: selectedColor }}>ნიშნების მართვა</h3>
-                        <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6' }}>
-                            <strong>მოსწავლე:</strong> {selectedStudent.name} {selectedStudent.surname}<br />
-                            <strong>თარიღი:</strong> {selectedCellDate}
-                        </p>
-
-                        {/* List of existing grades */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
-                            <h4 style={{ margin: '0', fontSize: '15px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px' }}>არსებული ნიშნები:</h4>
-                            {selectedGradeList.length === 0 ? (
-                                <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>ნიშნები არ ფიქსირდება</p>
-                            ) : (
-                                selectedGradeList.map((g) => {
-                                    const subjName = subjects.find(s => s._id === g.subject_id)?.name || 'უცნობი საგანი';
-                                    const typeLbl = g.pointType === 1 ? 'საშინაო' : g.pointType === 2 ? 'საკლასო' : g.pointType === 3 ? 'შემაჯამებელი' : g.pointType === 4 ? 'ექსტერნი' : 'დასწრება';
-                                    const pointLbl = g.point === -1 ? (g.checked ? 'დასწრება' : 'გაცდენა') : g.point === -2 ? 'X' : g.point === -3 ? 'ჩთ' : g.point.toString();
-
-                                    const isThisEditing = editingGradeId === g._id;
-
-                                    return (
-                                        <div key={g._id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <div>
-                                                    <div style={{ fontWeight: '700', fontSize: '14px' }}>{subjName}</div>
-                                                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{typeLbl} • {pointLbl}</div>
-                                                    {g.comment && <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#cbd5e1', marginTop: '4px' }}>"{g.comment}"</div>}
-                                                </div>
-                                                {!isThisEditing && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingGradeId(g._id);
-                                                            setEditPoint(g.point === -1 ? (g.checked ? 'დასწრება' : 'გაცდენა') : g.point === -2 ? 'X' : g.point === -3 ? 'ჩთ' : g.point.toString());
-                                                            setEditPointType(g.pointType);
-                                                            setEditComment(g.comment || '');
-                                                            setIsNewGradeForm(false);
-                                                        }}
-                                                        style={{ background: selectedColor, color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
-                                                    >
-                                                        ჩასწორება
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Edit fields for this grade */}
-                                            {isThisEditing && (
-                                                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    <div>
-                                                        <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>ქულა:</label>
-                                                        <select
-                                                            value={editPoint}
-                                                            onChange={(e) => setEditPoint(e.target.value)}
-                                                            style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px' }}
-                                                        >
-                                                            {Array.from({ length: 11 }, (_, i) => i).map(n => <option key={n} value={n.toString()}>{n}</option>)}
-                                                            <option value="ჩთ">ჩთ</option>
-                                                            <option value="დასწრება">დასწრება</option>
-                                                            <option value="გაცდენა">გაცდენა</option>
-                                                            <option value="X">X</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>ტიპი:</label>
-                                                        <select
-                                                            value={editPointType}
-                                                            onChange={(e) => setEditPointType(Number(e.target.value))}
-                                                            style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px' }}
-                                                        >
-                                                            <option value={1}>საშინაო</option>
-                                                            <option value={2}>საკლასო</option>
-                                                            <option value={3}>შემაჯამებელი</option>
-                                                            <option value={4}>ექსტერნი</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>კომენტარი:</label>
-                                                        <input
-                                                            type="text"
-                                                            value={editComment}
-                                                            onChange={(e) => setEditComment(e.target.value)}
-                                                            style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px', boxSizing: 'border-box' }}
-                                                        />
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                                                        <button
-                                                            onClick={() => handleUpdateGrade(g)}
-                                                            disabled={editLoading}
-                                                            style={{ flex: 1, background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', padding: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-                                                        >
-                                                            {editLoading ? 'ინახება...' : 'შენახვა'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteGrade(g._id)}
-                                                            disabled={editLoading}
-                                                            style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-                                                        >
-                                                            წაშლა
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setEditingGradeId(null)}
-                                                            disabled={editLoading}
-                                                            style={{ background: '#64748b', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}
-                                                        >
-                                                            გაუქმება
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {/* Add new grade section */}
-                        {!isNewGradeForm ? (
-                            <button
-                                onClick={() => {
-                                    setIsNewGradeForm(true);
-                                    setEditingGradeId(null);
-                                    setEditSubjectId(subjectId && subjectId !== 'all' ? subjectId : (subjects[0]?._id || ''));
-                                    setEditPoint('10');
-                                    setEditPointType(2);
-                                    setEditComment('');
-                                }}
-                                style={{ width: '100%', background: 'transparent', border: `1.5px dashed ${selectedColor}`, color: selectedColor, borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
-                            >
-                                + ახალი ნიშნის დამატება
-                            </button>
-                        ) : (
-                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: selectedColor }}>ახალი ნიშანი:</h4>
-                                <div>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>საგანი:</label>
-                                    <select
-                                        value={editSubjectId}
-                                        onChange={(e) => setEditSubjectId(e.target.value)}
-                                        disabled={!!subjectId && subjectId !== 'all'}
-                                        style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px' }}
-                                    >
-                                        {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>ქულა:</label>
-                                    <select
-                                        value={editPoint}
-                                        onChange={(e) => setEditPoint(e.target.value)}
-                                        style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px' }}
-                                    >
-                                        {Array.from({ length: 11 }, (_, i) => i).map(n => <option key={n} value={n.toString()}>{n}</option>)}
-                                        <option value="ჩთ">ჩთ</option>
-                                        <option value="დასწრება">დასწრება</option>
-                                        <option value="გაცდენა">გაცდენა</option>
-                                        <option value="X">X</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>ტიპი:</label>
-                                    <select
-                                        value={editPointType}
-                                        onChange={(e) => setEditPointType(Number(e.target.value))}
-                                        style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px' }}
-                                    >
-                                        <option value={1}>საშინაო</option>
-                                        <option value={2}>საკლასო</option>
-                                        <option value={3}>შემაჯამებელი</option>
-                                        <option value={4}>ექსტერნი</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>კომენტარი:</label>
-                                    <input
-                                        type="text"
-                                        value={editComment}
-                                        onChange={(e) => setEditComment(e.target.value)}
-                                        style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '4px', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                                    <button
-                                        onClick={handleAddNewGrade}
-                                        disabled={editLoading}
-                                        style={{ flex: 1, background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', padding: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
-                                        {editLoading ? 'ემატება...' : 'დამატება'}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsNewGradeForm(false)}
-                                        disabled={editLoading}
-                                        style={{ background: '#64748b', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 12px', fontSize: '13px', cursor: 'pointer' }}
-                                    >
-                                        გაუქმება
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
-                            <button
-                                onClick={() => setEditModalOpen(false)}
-                                style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', cursor: 'pointer' }}
-                            >
-                                დახურვა
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
     );
 };

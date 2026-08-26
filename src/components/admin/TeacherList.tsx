@@ -13,6 +13,7 @@ interface Teacher {
     name: string;
     surname: string;
     user_ID: string;
+    ID?: string;
 }
 
 interface TeacherListProps {
@@ -57,7 +58,7 @@ const TeacherList: React.FC<TeacherListProps> = ({
                             <tr key={teacher._id}>
                                 <td>{teacher.name}</td>
                                 <td>{teacher.surname}</td>
-                                <td>{teacher.user_ID}</td>
+                                <td>{teacher.ID || teacher.user_ID}</td>
                                 <td>
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                         <button 

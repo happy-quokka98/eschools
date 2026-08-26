@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 import { RiAdminFill } from "react-icons/ri";
-import { FaUserGraduate, FaChalkboardTeacher, FaUserFriends } from "react-icons/fa";
+import { FaUserGraduate, FaChalkboardTeacher } from "react-icons/fa";
 import { IconType } from 'react-icons';
 import { useColor } from './../../components/ColorContext';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +13,6 @@ import './StartPage.css';
 
 const roleMap: Record<string, string> = {
     'მოსწავლე': 'student',
-    'მშობელი': 'parent',
     'მასწავლებელი': 'teacher',
     'ადმინისტრატორი': 'admin',
 };
@@ -28,14 +27,25 @@ const StartPage: React.FC = () => {
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; message: string; isSuccess: boolean }>({ isOpen: false, message: '', isSuccess: false });
 
     useEffect(() => {
+        try {
+            const loginDataStr = localStorage.getItem('login');
+            if (loginDataStr) {
+                const loginData = JSON.parse(loginDataStr);
+                if (loginData?.role) {
+                    navigate(`/${loginData.role}`, { replace: true });
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
         return () => {
             if (timerRef.current) clearTimeout(timerRef.current);
         };
-    }, []);
+    }, [navigate]);
 
     const items: { icon: IconType; label: string; action: 'login' | 'register' }[] = [
         { icon: FaUserGraduate, label: 'მოსწავლე', action: 'login' },
-        { icon: FaUserFriends, label: 'მშობელი', action: 'login' },
         { icon: FaChalkboardTeacher, label: 'მასწავლებელი', action: 'login' },
         { icon: RiAdminFill, label: 'ადმინისტრატორი', action: 'login' },
     ];
@@ -61,24 +71,12 @@ const StartPage: React.FC = () => {
                 
                 localStorage.setItem('login', JSON.stringify({ role: data.role || role, user_ID, loginTime: Date.now() }));
                 
-                if ((role === 'student' || role === 'parent') && data.user_ID && data.class_id) {
+                if (role === 'student' && data.user_ID && data.class_id) {
                     localStorage.setItem('studentId', data.user_ID);
                     localStorage.setItem('classId', data.class_id);
                 }
                 
-                if (timerRef.current) clearTimeout(timerRef.current);
-                timerRef.current = setTimeout(() => {
-                    localStorage.removeItem('login');
-                    localStorage.removeItem('studentId');
-                    localStorage.removeItem('classId');
-                    setInfoModal({ isOpen: true, message: 'სესიის ვადა ამოიწურა. გთხოვთ გაიაროთ ავტორიზაცია თავიდან.', isSuccess: false });
-                }, 60 * 60 * 1000); // 1 hour
-                
-                setInfoModal({
-                    isOpen: true,
-                    message:'ავტორიზაცია წარმატებით დასრულდა',
-                    isSuccess: true
-                });
+                navigate(`/${role}`, { replace: true });
             } else {
                 const errorData = await res.json();
                 setInfoModal({ isOpen: true, message: errorData.message || 'ავტორიზაცია ვერ მოხერხდა', isSuccess: false });
@@ -89,29 +87,25 @@ const StartPage: React.FC = () => {
     };
 
     const handleInfoModalClose = () => {
-        const wasSuccess = infoModal.isSuccess;
-        const loginData = JSON.parse(localStorage.getItem('login') || '{}');
-
         setInfoModal({ isOpen: false, message: '', isSuccess: false });
-
-        if (wasSuccess && loginData.role) {
-            const isStaff = ['admin', 'rector', 'prorector', 'academic', 'clerk', 'secretary', 'accountant', 'it_manager', 'ped_council', 'sysadmin'].includes(loginData.role);
-            navigate(isStaff ? '/admin' : `/${loginData.role}`);
-        }
     };
 
     return (
         <div className="start-page-wrapper">
             <div className="start-page-bg-glow" style={{ background: `radial-gradient(circle at center, ${selectedColor}26 0%, transparent 70%)` }} />
+            <div className="start-page-brand">
+                <img src="/logo.png" alt="eSchools Logo" className="start-page-logo-small" />
+                <span className="start-page-brand-text">e<span style={{ color: selectedColor }}>Schools</span></span>
+            </div>
             
             <div className="start-page-content">
                 <header className="start-page-header animate-fade-in-down">
                     <h1 className="start-page-title">
-                       სატესტო <br />
-                        <span style={{ color: selectedColor }}>სკოლა</span>
+                       სასწავლო პორტალი <br />
+                        <span style={{ color: selectedColor }}>eSchools</span>
                     </h1>
                     <p className="start-page-subtitle">
-                        ონლაინ სასწავლო პორტალი
+                        სკოლის ელექტრონული ჟურნალი
                     </p>
                 </header>
 
@@ -162,7 +156,7 @@ const StartPage: React.FC = () => {
             />
 
             <div className="start-page-footer">
-                &copy; 2026-  ESCHOOLS PORTAL. ALL RIGHTS RESERVED.
+                &copy; 2026-  სატესტო სკოლა. ALL RIGHTS RESERVED.
             </div>
         </div>
     );

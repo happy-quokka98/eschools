@@ -9,8 +9,11 @@ interface Student {
     _id: string;
     name: string;
     surname: string;
+    ID?: string;
     user_ID: string;
-    class_id?: string; // for direct class_id
+    role?: string;
+    image?: string;
+    class_id?: string;
     classInfo?: {
         _id?: string;
         classname: string;
@@ -36,11 +39,15 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, student, cl
 
     useEffect(() => {
         if (student) {
+            const idVal = student.ID || student.user_ID || '';
             setFormData({
                 _id: student._id,
                 name: student.name,
                 surname: student.surname,
-                user_ID: student.user_ID,
+                ID: idVal,
+                user_ID: idVal,
+                role: student.role || "student",
+                image: student.image || "",
                 class_id: student.class_id || student.classInfo?._id || "",
                 classInfo: student.classInfo || undefined,
             });
@@ -61,11 +68,15 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, student, cl
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const idVal = formData.ID || formData.user_ID || '';
         onSave({
             _id: formData._id,
             name: formData.name,
             surname: formData.surname,
-            user_ID: formData.user_ID,
+            ID: idVal,
+            user_ID: idVal,
+            role: formData.role || "student",
+            image: formData.image || "",
             class_id: formData.class_id,
             classInfo: formData.classInfo,
         } as Student);
@@ -95,8 +106,8 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, student, cl
                         <input className="admin-input" type="text" name="surname" value={formData.surname} onChange={handleChange} />
                     </div>
                     <div className="admin-form-group">
-                        <label className="admin-label">პირადი ნომერი</label>
-                        <input className="admin-input" type="text" name="user_ID" value={formData.user_ID} onChange={handleChange} />
+                        <label className="admin-label">პირადი ნომერი / ID (პ/ნ)</label>
+                        <input className="admin-input" type="text" name="ID" value={formData.ID || formData.user_ID || ''} onChange={handleChange} />
                     </div>
                     <div className="admin-form-group">
                         <label className="admin-label">კლასი</label>

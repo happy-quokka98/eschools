@@ -205,6 +205,7 @@ const StudentStatistics: React.FC<StudentStatisticsProps> = ({ studentId, classI
     };
 
     const formatAverage = (average: number): string => {
+        if (!average || average <= 0) return "-";
         return average.toFixed(1);
     };
 

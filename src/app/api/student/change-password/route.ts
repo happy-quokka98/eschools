@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -10,8 +11,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "ყველა ველი აუცილებელია" }, { status: 400 });
     }
 
+    const trimmed = student_id.toString().trim();
     const db = await getDb();
-    const student = await db.collection("students").findOne({ user_ID: student_id });
+    let student = null;
+    if (ObjectId.isValid(trimmed)) {
+      student = await db.collection("students").findOne({ _id: new ObjectId(trimmed) });
+    }
+    if (!student) {
+      student = await db.collection("students").findOne({
+        $or: [{ ID: trimmed }, { user_ID: trimmed }]
+      });
+    }
 
     if (!student) {
       return NextResponse.json({ message: "მოსწავლე ვერ მოიძებნა" }, { status: 404 });

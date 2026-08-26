@@ -1,15 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { ObjectId } from "mongodb";
 
 export async function GET(req: NextRequest) {
-  const userID = req.nextUrl.searchParams.get("user_ID");
+  const userID = req.nextUrl.searchParams.get("user_ID") || req.nextUrl.searchParams.get("ID") || req.nextUrl.searchParams.get("id");
   if (!userID) {
     return NextResponse.json({ message: "Missing user_ID parameter" }, { status: 400 });
   }
+
+  const trimmedId = userID.trim();
   const db = await getDb();
-  const result = await db.collection("teachers").findOne({ user_ID: userID });
-  if (result) {
-    return NextResponse.json(result);
+
+  let result = null;
+  if (ObjectId.isValid(trimmedId)) {
+    result = await db.collection("teachers").findOne({ _id: new ObjectId(trimmedId) });
   }
+  if (!result) {
+    result = await db.collection("teachers").findOne({
+      $or: [{ ID: trimmedId }, { user_ID: trimmedId }]
+    });
+  }
+
+  if (result) {
+    const idVal = result.ID || result.user_ID || "";
+    return NextResponse.json({
+      ...result,
+      _id: result._id.toString(),
+      ID: idVal,
+      user_ID: idVal,
+      role: result.role || "teacher",
+      phone: result.phone || "",
+      classes: result.classes || [],
+    });
+  }
+
   return NextResponse.json({ message: "User not found" }, { status: 404 });
 }

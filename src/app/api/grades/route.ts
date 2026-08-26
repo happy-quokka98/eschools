@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = await getDb();
-  const filter: Record<string, ObjectId> = { class_id: new ObjectId(classID) };
+  const filter: Record<string, any> = { class_id: new ObjectId(classID) };
 
   if (subjectID) {
     if (!ObjectId.isValid(subjectID)) {
@@ -26,6 +26,24 @@ export async function GET(req: NextRequest) {
 
   const year = req.nextUrl.searchParams.get("year");
   const date = req.nextUrl.searchParams.get("date");
+  if (date) {
+    filter.date = date;
+  }
+
+  const pointType = req.nextUrl.searchParams.get("pointType");
+  if (pointType) {
+    filter.pointType = parseInt(pointType, 10);
+  }
+
+  const lessonNum = req.nextUrl.searchParams.get("lesson_num");
+  if (lessonNum) {
+    const num = parseInt(lessonNum, 10);
+    if (num === 1) {
+      filter.lesson_num = { $in: [1, null, undefined] };
+    } else {
+      filter.lesson_num = num;
+    }
+  }
 
   const grades = await findGrades(db, filter, { year, date });
   return NextResponse.json(grades);

@@ -23,7 +23,6 @@ interface ExternalsMarkInputProps {
     selectedColor: string;
     logoutButtonStyle: React.CSSProperties;
     onBackClick: () => void;
-    classSwitcher?: React.ReactNode;
 }
 
 const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
@@ -32,40 +31,20 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
     subjectId,
     subjectName,
     selectedColor,
-    onBackClick,
-    classSwitcher
+    onBackClick
 }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [grades, setGrades] = useState<{ [studentId: string]: number }>({});
-    const [existingDates, setExistingDates] = useState<{ [studentId: string]: string }>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchStudents = async () => {
             try {
-                // Fetch students
-                const studentsRes = await fetch('/api/student/all');
-                if (studentsRes.ok) {
-                    const allStudents = await studentsRes.json();
+                const res = await fetch('/api/student/all');
+                if (res.ok) {
+                    const allStudents = await res.json();
                     setStudents(allStudents.filter((s: any) => s.classInfo && s.classInfo._id === classId));
-                }
-
-                // Fetch grades
-                const gradesRes = await fetch(`/api/grades?class_id=${classId}&subject_id=${subjectId}`);
-                if (gradesRes.ok) {
-                    const allGrades: any[] = await gradesRes.json();
-                    const externalGradesMap: { [studentId: string]: number } = {};
-                    const datesMap: { [studentId: string]: string } = {};
-                    allGrades.forEach(g => {
-                        if (g.pointType === 4 && g.student_id) {
-                            const studentIdStr = g.student_id.toString();
-                            externalGradesMap[studentIdStr] = g.point;
-                            datesMap[studentIdStr] = g.date;
-                        }
-                    });
-                    setGrades(externalGradesMap);
-                    setExistingDates(datesMap);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -73,8 +52,8 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
                 setLoading(false);
             }
         };
-        fetchData();
-    }, [classId, subjectId]);
+        fetchStudents();
+    }, [classId]);
 
     const handleGradeChange = (studentId: string, grade: string) => {
         const numGrade = parseInt(grade);
@@ -91,8 +70,8 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
                 subject_id: subjectId,
                 class_id: classId,
                 point: grade,
-                pointType: 4,
-                date: existingDates[studentId] || new Date().toISOString().split('T')[0],
+                pointType: 1,
+                date: new Date().toISOString().split('T')[0],
                 checked: true
             }));
 
@@ -102,17 +81,7 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
                 body: JSON.stringify(gradesToSubmit)
             });
 
-            if (res.ok) {
-                alert('ნიშნები წარმატებით შეინახა!');
-                // Update local dates map for any newly saved grades
-                const updatedDates = { ...existingDates };
-                gradesToSubmit.forEach(g => {
-                    if (g.student_id) {
-                        updatedDates[g.student_id] = g.date;
-                    }
-                });
-                setExistingDates(updatedDates);
-            }
+            if (res.ok) alert('ნიშნები წარმატებით შეინახა!');
             else alert('ნიშნების შენახვა ვერ მოხერხდა');
         } catch (error) {
             console.error('Error:', error);
@@ -130,15 +99,11 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    {classSwitcher ? classSwitcher : (
-                        <>
-                            <h2 className="admin-view-title" style={{ marginBottom: '5px' }}>ექსტერნების ნიშნები</h2>
-                            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>
-                                {className} • {subjectName}
-                            </div>
-                        </>
-                    )}
+                <div style={{ textAlign: 'center', flex: 1 }}>
+                    <h2 className="admin-view-title" style={{ marginBottom: '5px' }}>ექსტერნების ნიშნები</h2>
+                    <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>
+                        {className} • {subjectName}
+                    </div>
                 </div>
             </header>
 

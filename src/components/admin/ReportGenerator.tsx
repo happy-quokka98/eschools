@@ -38,15 +38,13 @@ interface ReportGeneratorProps {
     selectedColor: string;
     logoutButtonStyle: React.CSSProperties;
     onBackClick: () => void;
-    classSwitcher?: React.ReactNode;
 }
 
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     classId,
     className,
     selectedColor,
-    onBackClick,
-    classSwitcher
+    onBackClick
 }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -100,7 +98,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                     properties: {},
                     children: [
                         new Paragraph({
-                            children: [new TextRun({ text: 'სატესტო სკოლა', bold: true, size: 24 })],
+                            children: [new TextRun({ text: 'ა(ა)იპ ბათუმის წმ.ანდრია პირველწოდებულის სახელობის სკოლა', bold: true, size: 24 })],
                             alignment: AlignmentType.CENTER,
                             spacing: { after: 200 }
                         }),
@@ -175,7 +173,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                {classSwitcher ? classSwitcher : <h2 className="admin-view-title">უწყისის გენერატორი</h2>}
+                <h2 className="admin-view-title">უწყისის გენერატორი</h2>
             </header>
 
             <div className="admin-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '30px' }}>

@@ -6,7 +6,7 @@ import { useColor } from '../ColorContext';
 interface Class {
     _id: string;
     classname: string;
-    tutor_id?: string;
+    damrigebeli?: string;
     subjects?: { subject_id: string; teacher_id: string }[];
 }
 
@@ -18,7 +18,8 @@ interface Teacher {
 
 interface Subject {
     _id: string;
-    name: string;
+    name?: string;
+    subject_name?: string;
 }
 
 interface EditClassFormProps {
@@ -40,11 +41,11 @@ const EditClassForm: React.FC<EditClassFormProps> = ({ onUpdateClass, onCancel, 
             const defaultClass = classes.find(c => c.classname === '1ა');
             if (defaultClass) {
                 setSelectedClassId(defaultClass._id);
-                setTutorId(defaultClass.tutor_id || '');
+                setTutorId(defaultClass.damrigebeli || '');
                 setClassSubjects(defaultClass.subjects || []);
             } else {
                 setSelectedClassId(classes[0]._id);
-                setTutorId(classes[0].tutor_id || '');
+                setTutorId(classes[0].damrigebeli || '');
                 setClassSubjects(classes[0].subjects || []);
             }
         }
@@ -54,7 +55,7 @@ const EditClassForm: React.FC<EditClassFormProps> = ({ onUpdateClass, onCancel, 
         setSelectedClassId(classId);
         const selectedClass = classes.find(c => c._id === classId);
         if (selectedClass) {
-            setTutorId(selectedClass.tutor_id || '');
+            setTutorId(selectedClass.damrigebeli || '');
             setClassSubjects(selectedClass.subjects || []);
         }
     };
@@ -79,7 +80,7 @@ const EditClassForm: React.FC<EditClassFormProps> = ({ onUpdateClass, onCancel, 
         const classData: Class = {
             _id: selectedClassId,
             classname: classes.find(c => c._id === selectedClassId)?.classname || '',
-            tutor_id: tutorId,
+            damrigebeli: tutorId,
             subjects: classSubjects,
         };
         onUpdateClass(classData);
@@ -94,9 +95,11 @@ const EditClassForm: React.FC<EditClassFormProps> = ({ onUpdateClass, onCancel, 
                     <label className="admin-label">აირჩიეთ კლასი</label>
                     <select className="admin-select" value={selectedClassId} onChange={(e) => handleClassChange(e.target.value)}>
                         {classes.sort((a, b) => {
-                            const aMatch = a.classname.match(/^([0-9]+)([ა-ჰ])$/);
-                            const bMatch = b.classname.match(/^([0-9]+)([ა-ჰ])$/);
-                            if (!aMatch || !bMatch) return a.classname.localeCompare(b.classname);
+                            const aName = a?.classname || '';
+                            const bName = b?.classname || '';
+                            const aMatch = aName.match(/^([0-9]+)([ა-ჰ])$/);
+                            const bMatch = bName.match(/^([0-9]+)([ა-ჰ])$/);
+                            if (!aMatch || !bMatch) return aName.localeCompare(bName);
                             const aGrade = parseInt(aMatch[1], 10);
                             const bGrade = parseInt(bMatch[1], 10);
                             const aParallel = aMatch[2];
@@ -125,7 +128,7 @@ const EditClassForm: React.FC<EditClassFormProps> = ({ onUpdateClass, onCancel, 
                             <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                 <select className="admin-select" value={cs.subject_id} onChange={(e) => handleSubjectChange(index, 'subject_id', e.target.value)} style={{ flex: 1 }}>
                                     <option value="">საგანი</option>
-                                    {subjects?.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                    {subjects?.map(s => <option key={s._id} value={s._id}>{s.name || s.subject_name}</option>)}
                                 </select>
                                 <select className="admin-select" value={cs.teacher_id} onChange={(e) => handleSubjectChange(index, 'teacher_id', e.target.value)} style={{ flex: 1 }}>
                                     <option value="">მასწავლებელი</option>

@@ -10,6 +10,7 @@ interface Teacher {
     name: string;
     surname: string;
     user_ID: string;
+    ID?: string;
 }
 
 interface Class {
@@ -31,11 +32,13 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, teacher, cl
 
     useEffect(() => {
         if (teacher) {
+            const idVal = teacher.ID || teacher.user_ID || '';
             setFormData({
                 _id: teacher._id,
                 name: teacher.name,
                 surname: teacher.surname,
-                user_ID: teacher.user_ID,
+                ID: idVal,
+                user_ID: idVal,
             });
         }
     }, [teacher]);
@@ -49,11 +52,13 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, teacher, cl
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const idVal = formData.ID || formData.user_ID || '';
         onSave({
             _id: formData._id,
             name: formData.name,
             surname: formData.surname,
-            user_ID: formData.user_ID,
+            ID: idVal,
+            user_ID: idVal,
         } as Teacher);
     };
 
@@ -81,8 +86,8 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, teacher, cl
                         <input className="admin-input" type="text" name="surname" value={formData.surname} onChange={handleChange} />
                     </div>
                     <div className="admin-form-group">
-                        <label className="admin-label">პირადი ნომერი</label>
-                        <input className="admin-input" type="text" name="user_ID" value={formData.user_ID} onChange={handleChange} />
+                        <label className="admin-label">პირადი ნომერი / ID (პ/ნ)</label>
+                        <input className="admin-input" type="text" name="ID" value={formData.ID || formData.user_ID || ''} onChange={handleChange} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
                         <button type="button" onClick={onClose} className="admin-cancel-btn">

@@ -1,6 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 
-const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:i800rknocMNgOOoS@saqme.xinjxxm.mongodb.net/school";
+const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@schools.xqta1tx.mongodb.net/school";
 
 const options = {};
 
@@ -148,12 +148,23 @@ export async function findGrades(
   });
 }
 
+const indexedCollections = new Set<string>();
+
 export async function ensureIndexes(db: any, collectionName: string) {
+  if (indexedCollections.has(collectionName)) return;
+
   try {
-    // Idempotent index creation runs in the background
-    db.collection(collectionName).createIndex({ class_id: 1, subject_id: 1 });
-    db.collection(collectionName).createIndex({ student_id: 1 });
-    db.collection(collectionName).createIndex({ date: 1 });
+    // Idempotent compound index creation for maximum query speed
+    await Promise.all([
+      db.collection(collectionName).createIndex({ student_id: 1, class_id: 1, subject_id: 1, date: 1, lesson_num: 1 }),
+      db.collection(collectionName).createIndex({ class_id: 1, subject_id: 1, date: 1 }),
+      db.collection(collectionName).createIndex({ student_id: 1, date: 1 }),
+      db.collection("students").createIndex({ user_ID: 1 }, { sparse: true }),
+      db.collection("teachers").createIndex({ user_ID: 1 }, { sparse: true }),
+      db.collection("assignments").createIndex({ class_id: 1, teacher_id: 1 }),
+      db.collection("assignment_submissions").createIndex({ assignment_id: 1, student_id: 1 }),
+    ]);
+    indexedCollections.add(collectionName);
   } catch (err) {
     console.error("Auto index creation failed:", err);
   }

@@ -42,8 +42,8 @@ const AddStudentForm: React.FC<AddStudentFormProps> = ({
                         <input className="admin-input" id="surname" name="surname" type="text" placeholder="შეიყვანეთ გვარი" required />
                     </div>
                     <div className="admin-form-group">
-                        <label className="admin-label">პირადი ნომერი</label>
-                        <input className="admin-input" id="user_ID" name="user_ID" type="text" placeholder="შეიყვანეთ პირადი ნომერი" required />
+                        <label className="admin-label">პირადი ნომერი / ID (პ/ნ)</label>
+                        <input className="admin-input" id="ID" name="ID" type="text" placeholder="შეიყვანეთ პირადი ნომერი" required />
                     </div>
                     <div className="admin-form-group">
                         <label className="admin-label">კლასი</label>

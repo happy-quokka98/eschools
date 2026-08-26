@@ -34,7 +34,9 @@ body {
   background: linear-gradient(135deg, #3a8dde 0%, #005fa3 100%);
   color: #fff;
   font-size: 22px;
-  width: 320px;
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
   height: 160px;
   display: flex;
   flex-direction: column;

@@ -14,6 +14,7 @@ interface NoticeBoardProps {
     id: string;
     name: string;
     role: string;
+    classId?: string | null;
   };
 }
 
@@ -23,6 +24,7 @@ interface Announcement {
   content: string;
   author_id: string;
   author_name: string;
+  class_id?: string | null;
   date: string;
   time: string;
 }
@@ -38,9 +40,12 @@ const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentU
 
   // Fetch announcements
   const { data: announcements, isLoading, error } = useQuery<Announcement[]>({
-    queryKey: ['announcements'],
+    queryKey: ['announcements', currentUser.role, currentUser.classId],
     queryFn: async () => {
-      const response = await fetch('/api/announcements');
+      const roleParam = currentUser.role ? `role=${currentUser.role}` : '';
+      const classParam = currentUser.classId ? `class_id=${currentUser.classId}` : '';
+      const query = [roleParam, classParam].filter(Boolean).join('&');
+      const response = await fetch(`/api/announcements?${query}`);
       if (!response.ok) {
         throw new Error('კავშირის შეცდომა');
       }
@@ -50,7 +55,7 @@ const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentU
 
   // Create announcement mutation
   const createMutation = useMutation({
-    mutationFn: async (newAnn: { title: string; content: string; author_id: string; author_name: string }) => {
+    mutationFn: async (newAnn: { title: string; content: string; author_id: string; author_name: string; class_id?: string | null }) => {
       const response = await fetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +107,8 @@ const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentU
       title,
       content,
       author_id: currentUser.id,
-      author_name: currentUser.name
+      author_name: currentUser.name,
+      class_id: currentUser.classId || null
     });
   };
 

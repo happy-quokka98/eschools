@@ -4,7 +4,6 @@ export function calculateSemesterStats(grades: Grade[], startMonth: number, endM
   let totalPoints = 0;
   let count = 0;
   let validGrades = 0;
-  let hasCTGrade = false;
 
   const lessonAttendance: Record<string, boolean> = {};
 
@@ -16,12 +15,10 @@ export function calculateSemesterStats(grades: Grade[], startMonth: number, endM
 
     const month = date.getMonth() + 1;
     if (month >= startMonth && month <= endMonth) {
-      if (grade.point === -3) {
-        hasCTGrade = true;
-      }
-
-      if (grade.point >= 0 && grade.point <= 10) {
-        totalPoints += grade.point;
+      const pt = typeof grade.point === "number" ? grade.point : (typeof grade.point === "string" && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : -1);
+      // Strictly include only valid 0-10 numeric marks (excluding comments, formative grades, and pass/fail -3)
+      if (pt >= 0 && pt <= 10 && !grade.is_formative && grade.point !== -3) {
+        totalPoints += pt;
         validGrades++;
       }
 
@@ -35,12 +32,7 @@ export function calculateSemesterStats(grades: Grade[], startMonth: number, endM
     }
   }
 
-  let average = 0;
-  if (hasCTGrade) {
-    average = -3;
-  } else if (validGrades > 0) {
-    average = totalPoints / validGrades;
-  }
+  const average = validGrades > 0 ? totalPoints / validGrades : 0;
 
   let attendedLessons = 0;
   for (const date in lessonAttendance) {
@@ -66,17 +58,9 @@ export function calculateAnnualStatsWithRawData(
   const totalCount = firstSemester.count + secondSemester.count;
 
   let externalGrade: Grade | null = null;
-  let ctGrade: Grade | null = null;
-
   for (const grade of grades) {
-    if (grade.pointType === 4 && grade.point !== -1) {
+    if (grade.pointType === 4 && typeof grade.point === "number" && grade.point >= 0) {
       externalGrade = grade;
-      break;
-    }
-  }
-  for (const grade of grades) {
-    if (grade.point === -3) {
-      ctGrade = grade;
       break;
     }
   }
@@ -84,17 +68,14 @@ export function calculateAnnualStatsWithRawData(
   let average = 0;
   if (externalGrade) {
     average = externalGrade.point;
-  }else if (ctGrade) {
-    average = -3;
   } else if (isFifthGrade) {
-    average = secondSemester.valid_grades >= 0
-      ? secondSemester.average
-      : firstSemester.average;
-  } else if (firstSemester.valid_grades >= 0 && secondSemester.valid_grades > 0) {
+    // 5th Grade 1st semester is comments only, 2nd semester is numeric marks
+    average = secondSemester.valid_grades > 0 ? secondSemester.average : (firstSemester.valid_grades > 0 ? firstSemester.average : 0);
+  } else if (firstSemester.valid_grades > 0 && secondSemester.valid_grades > 0) {
     average = (firstSemester.average + secondSemester.average) / 2.0;
-  } else if (firstSemester.valid_grades >= 0) {
+  } else if (firstSemester.valid_grades > 0) {
     average = firstSemester.average;
-  } else if (secondSemester.valid_grades >= 0) {
+  } else if (secondSemester.valid_grades > 0) {
     average = secondSemester.average;
   }
 

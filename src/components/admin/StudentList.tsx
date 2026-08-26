@@ -8,19 +8,24 @@ const TrashIcon = FaTrashAlt as React.FC;
 const RestoreIcon = MdRestorePage as React.FC;
 const EditIcon = FaEdit as React.FC;
 
-
 interface Student {
     _id: string;
     name: string;
     surname: string;
     user_ID: string;
+    ID?: string;
+    role?: string;
+    image?: string;
     classInfo?: {
+        _id?: string;
+        ID?: string;
         classname: string;
     };
 }
 
 interface Class {
     _id: string;
+    ID?: string;
     classname: string;
 }
 
@@ -32,7 +37,7 @@ interface StudentListProps {
     selectedColor: string;
     logoutButtonStyle: React.CSSProperties;
     onBackClick: () => void;
-    onGradeClick: (grade: number) => void;
+    onGradeClick: (grade: number | null) => void;
     onParallelFilterClick: (filter: string | null) => void;
     onDeleteStudent: (studentId: string) => void;
     onResetPassword: (studentId: string) => void;
@@ -54,18 +59,28 @@ const StudentList: React.FC<StudentListProps> = ({
     onEditStudent,
     onViewStudentCard,
 }) => {
-    // ... filtering logic remains same ...
+    const getClassNameStr = (item: any): string => {
+        if (!item) return '';
+        if (typeof item === 'string') return item;
+        return item.ID || item.classname || '';
+    };
+
+    // Extract available parallel letters for the selected grade filter
     const parallelLetters = Array.from(new Set(
         classes
             .filter(c => {
-                const match = c.classname.match(/^([0-9]+)([ა-ჰ])$/);
+                const name = getClassNameStr(c);
+                if (!name) return false;
+                const match = name.match(/(\d+)/);
                 return match && parseInt(match[1], 10) === classFilter;
             })
             .map(c => {
-                const match = c.classname.match(/^([0-9]+)([ა-ჰ])$/);
-                return match ? match[2] : null;
+                const name = getClassNameStr(c);
+                if (!name) return null;
+                const match = name.match(/[ა-ჰa-zA-Z]/);
+                return match ? match[0] : null;
             })
-            .filter(Boolean)
+            .filter((l): l is string => Boolean(l))
     )).sort((a, b) => {
         const georgianOrder = 'აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰ';
         const aIndex = georgianOrder.indexOf(a || '');
@@ -73,29 +88,41 @@ const StudentList: React.FC<StudentListProps> = ({
         return aIndex - bIndex;
     });
 
-    const studentsInGrade = students.filter(student => {
-        if (!student.classInfo?.classname) return false;
-        const match = student.classInfo.classname.match(/^([0-9]+)([ა-ჰ])$/);
-        if (!match) return false;
-        const grade = parseInt(match[1], 10);
-        return grade === classFilter;
-    });
+    // Filter students by grade if classFilter is set, otherwise include all students
+    const studentsInGrade = classFilter === null
+        ? students
+        : students.filter(student => {
+            const name = getClassNameStr(student?.classInfo);
+            if (!name) return false;
+            const match = name.match(/(\d+)/);
+            if (!match) return false;
+            const grade = parseInt(match[1], 10);
+            return grade === classFilter;
+        });
 
+    // Filter by parallel letter if selected
     const filteredStudents = parallelFilter
         ? studentsInGrade.filter(student => {
-            const match = student.classInfo?.classname.match(/^([0-9]+)([ა-ჰ])$/);
-            return match && match[2] === parallelFilter;
+            const name = getClassNameStr(student?.classInfo);
+            if (!name) return false;
+            const match = name.match(/[ა-ჰa-zA-Z]/);
+            return match && match[0] === parallelFilter;
         })
         : studentsInGrade;
 
-    const grades = Array.from(new Set(
+    // Build unique list of numeric grades present in classes, with default 1..12 fallback
+    const parsedGrades = Array.from(new Set(
         classes
             .map(c => {
-                const match = c.classname.match(/^([0-9]+)([ა-ჰ])$/);
+                const name = getClassNameStr(c);
+                if (!name) return null;
+                const match = name.match(/(\d+)/);
                 return match ? parseInt(match[1], 10) : null;
             })
             .filter((g): g is number => g !== null)
     )).sort((a, b) => a - b);
+
+    const grades = parsedGrades.length > 0 ? parsedGrades : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
     const getActiveStyle = (active: boolean) => {
         return active
@@ -118,6 +145,13 @@ const StudentList: React.FC<StudentListProps> = ({
 
             {/* Grade Filters */}
             <div style={{ marginBottom: '30px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                <button 
+                    onClick={() => onGradeClick(null)} 
+                    className={`admin-filter-btn ${classFilter === null ? 'active' : ''}`}
+                    style={getActiveStyle(classFilter === null)}
+                >
+                    ყველა
+                </button>
                 {grades.map(grade => (
                     <button 
                         key={grade} 
@@ -153,7 +187,7 @@ const StudentList: React.FC<StudentListProps> = ({
                 </div>
             )}
 
-            {classFilter !== null && (
+            {/* Student Table */}
             <div className="admin-list-container animate-zoom-in">
                 <table className="admin-table">
                     <thead>
@@ -170,8 +204,8 @@ const StudentList: React.FC<StudentListProps> = ({
                             <tr key={student._id}>
                                 <td>{student.name}</td>
                                 <td>{student.surname}</td>
-                                <td>{student.user_ID}</td>
-                                <td>{student.classInfo?.classname || 'N/A'}</td>
+                                <td>{student.ID || student.user_ID}</td>
+                                <td>{getClassNameStr(student.classInfo) || 'N/A'}</td>
                                 <td>
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
                                         <button 
@@ -207,9 +241,8 @@ const StudentList: React.FC<StudentListProps> = ({
                     </tbody>
                 </table>
             </div>
-            )}
         </div>
     );
 };
 
-export default StudentList; 
+export default StudentList;

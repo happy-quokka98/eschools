@@ -1,13 +1,11 @@
 "use client";
 import React, { useState, useEffect, FormEvent } from 'react';
-import { FaUserGraduate, FaChalkboardTeacher, FaHistory, FaBookOpen, FaBookReader, FaCalendarAlt, FaFileAlt, FaSearch, FaBullhorn, FaComments, FaSignOutAlt, FaDownload, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaUserGraduate, FaChalkboardTeacher, FaHistory, FaBookOpen, FaBookReader, FaCalendarAlt, FaFileAlt, FaSearch, FaBullhorn, FaComments } from "react-icons/fa";
 import { MdEdit, MdAdd, MdOutlineWarningAmber } from "react-icons/md";
 import { IoStatsChartSharp, IoLockClosedSharp } from "react-icons/io5";
 import { GoPlus } from "react-icons/go";
 import { IconType } from 'react-icons';
 import { useColor } from './../../components/ColorContext';
-import { useQuery } from '@tanstack/react-query';
-import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import ColorPalette from './../../components/ColorPalette';
 import { useNavigate } from 'react-router-dom';
 import { IoSchoolSharp } from "react-icons/io5";
@@ -15,6 +13,9 @@ import { FaArrowLeftLong } from "react-icons/fa6";
 import AddStudentForm from '../../components/admin/AddStudentForm';
 import StudentList from '../../components/admin/StudentList';
 import AdminDashboard from '../../components/admin/AdminDashboard';
+import AddAdminForm from '../../components/admin/AddAdminForm';
+import AdminList, { AdminUser } from '../../components/admin/AdminList';
+import { RiAdminFill } from "react-icons/ri";
 import MessagePopup from '../../components/MessagePopup';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import EditStudentModal from '../../components/admin/EditStudentModal';
@@ -32,11 +33,15 @@ import ReportGenerator from '../../components/admin/ReportGenerator';
 import StudentCard from '../../components/admin/StudentCard';
 import NoticeBoard from '../../components/NoticeBoard';
 import ChatModule from '../../components/ChatModule';
-import AtRiskList from '../../components/admin/AtRiskList';
+import ExamsManager from '../../components/admin/ExamsManager';
+import MandaturiInfractionManager from '../../components/admin/MandaturiInfractionManager';
+import TopStudentsMonitor from '../../components/admin/TopStudentsMonitor';
+import HomeworkModule from '../../components/HomeworkModule';
+
+import { FaShieldAlt, FaAward, FaCheckDouble, FaTasks } from 'react-icons/fa';
 import './Admin.css';
 
 const ArrowLeftIcon = FaArrowLeftLong as React.FC<{ size?: number | string }>;
-const FaSignOutAltIcon = FaSignOutAlt as React.ComponentType<any>;
 
 
 interface Student {
@@ -44,8 +49,12 @@ interface Student {
     name: string;
     surname: string;
     user_ID: string;
+    ID?: string;
+    role?: string;
+    image?: string;
     classInfo?: {
         _id?: string;
+        ID?: string;
         classname: string;
     };
 }
@@ -55,574 +64,35 @@ interface Teacher {
     name: string;
     surname: string;
     user_ID: string;
+    ID?: string;
 }
 
 interface Subject {
     _id: string;
     name: string;
+    subject_name?: string;
 }
 
 interface Class {
     _id: string;
+    ID?: string;
     classname: string;
-    tutor_id?: string;
+    damrigebeli?: string;
     subjects?: { subject_id: string; teacher_id: string }[];
 }
-
-const AdminApplicationsPanel: React.FC<{ adminId: string; role: string; handleBackClick: () => void }> = ({ adminId, role, handleBackClick }) => {
-  const [commentText, setCommentText] = useState<Record<string, string>>({});
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const { selectedColor } = useColor();
-
-  const { data: apps, refetch, isLoading } = useQuery<any[]>({
-    queryKey: ['admin-applications', adminId, role],
-    queryFn: async () => {
-      const res = await fetch(`/api/applications?user_id=${adminId}&role=${role}`);
-      if (!res.ok) throw new Error();
-      return res.json();
-    },
-    enabled: !!adminId
-  });
-
-  const handleResolve = async (appId: string, status: 'დადასტურებული' | 'უარყოფილი') => {
-    setResolvingId(appId);
-    try {
-      const res = await fetch('/api/applications', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          applicationId: appId,
-          status,
-          comment: commentText[appId] || "",
-          resolvedBy: adminId
-        })
-      });
-      if (res.ok) {
-        refetch();
-      } else {
-        alert("შეცდომა განაცხადის განახლებისას");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("კავშირი ვერ დამყარდა");
-    } finally {
-      setResolvingId(null);
-    }
-  };
-
-  const downloadAppDoc = (app: any) => {
-    const doc = new Document({
-      sections: [{
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: "ოფიციალური განცხადება", bold: true, size: 28, font: "DejaVu Sans" }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "ვის: ", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: "სკოლის დირექციას / სადამრიგებლო კლასის ხელმძღვანელს\n", font: "DejaVu Sans" }),
-              new TextRun({ text: "ვისგან: ", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `მოსწავლე ${app.studentName}-ის მშობლისგან\n`, font: "DejaVu Sans" }),
-              new TextRun({ text: "თარიღი: ", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `${new Date(app.submittedAt).toLocaleDateString('ka-GE')} ${new Date(app.submittedAt).toLocaleTimeString('ka-GE')}\n\n`, font: "DejaVu Sans" }),
-              new TextRun({ text: "განაცხადის ტიპი: ", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `${app.type}\n`, font: "DejaVu Sans" }),
-              new TextRun({ text: "სათაური: ", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `${app.title}\n\n`, bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: "განცხადების შინაარსი:\n", bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `${app.content}\n\n`, font: "DejaVu Sans" }),
-            ],
-            spacing: { after: 300 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `საქმისწარმოების სტატუსი: `, bold: true, font: "DejaVu Sans" }),
-              new TextRun({ text: `${app.status}\n`, font: "DejaVu Sans" }),
-              app.resolvedBy ? new TextRun({ text: `რეზოლუცია: ${app.resolvedBy}\n`, font: "DejaVu Sans" }) : new TextRun({ text: "", font: "DejaVu Sans" }),
-              app.comment ? new TextRun({ text: `განმხილველის კომენტარი: ${app.comment}\n`, font: "DejaVu Sans" }) : new TextRun({ text: "", font: "DejaVu Sans" }),
-            ],
-            spacing: { after: 600 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "ხელმოწერა: ________________________", font: "DejaVu Sans" }),
-            ],
-            alignment: AlignmentType.RIGHT,
-          }),
-        ],
-      }],
-    });
-
-    Packer.toBlob(doc).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `ganacxadeba_${app.type.replace(/\s+/g, '_')}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-  };
-
-  if (isLoading) return <div style={{ color: 'white', textAlign: 'center', padding: '40px' }}>განაცხადები იტვირთება...</div>;
-
-  return (
-    <div style={{ width: '100%' }}>
-      <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-        <FaArrowLeftLong /> უკან დაბრუნება
-      </button>
-
-      <div className="admin-list-container" style={{ padding: '24px', background: '#1e293b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: 'white' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>სკოლის ყველა განაცხადი (საქმის წარმოება)</h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px' }}>სისტემაში შემოსული ყველა მშობლის განცხადების მონიტორინგი და რეზოლუცია</p>
-
-        {!apps || apps.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>განაცხადები არ არის შემოსული.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '13px' }}>
-                  <th style={{ padding: '12px' }}>თარიღი</th>
-                  <th style={{ padding: '12px' }}>მოსწავლე / კლასი</th>
-                  <th style={{ padding: '12px' }}>ტიპი</th>
-                  <th style={{ padding: '12px' }}>განცხადების შინაარსი</th>
-                  <th style={{ padding: '12px' }}>სტატუსი</th>
-                  <th style={{ padding: '12px' }}>მოქმედება / რეზოლუცია</th>
-                </tr>
-              </thead>
-              <tbody>
-                {apps.map((app) => (
-                  <tr key={app._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '14px' }}>
-                    <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                      {new Date(app.submittedAt).toLocaleDateString('ka-GE')}
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                        {new Date(app.submittedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <div style={{ fontWeight: 'bold' }}>{app.studentName}</div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>კლასი: {app.classname}</div>
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{app.type}</td>
-                    <td style={{ padding: '12px', maxWidth: '300px' }}>
-                      <div style={{ fontWeight: 'bold' }}>{app.title}</div>
-                      <div style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{app.content}</div>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ 
-                        padding: '4px 8px', 
-                        borderRadius: '12px', 
-                        fontSize: '12px', 
-                        fontWeight: 'bold',
-                        backgroundColor: app.status === 'დადასტურებული' ? 'rgba(34,197,94,0.15)' : app.status === 'უარყოფილი' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: app.status === 'დადასტურებული' ? '#22c55e' : app.status === 'უარყოფილი' ? '#ef4444' : '#f59e0b',
-                      }}>
-                        {app.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {app.status === 'განხილვაში' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '220px' }}>
-                          <input
-                            type="text"
-                            placeholder="კომენტარი (არასავალდებულო)..."
-                            value={commentText[app._id] || ""}
-                            onChange={(e) => setCommentText({ ...commentText, [app._id]: e.target.value })}
-                            style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', fontSize: '12px', outline: 'none' }}
-                          />
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleResolve(app._id, 'დადასტურებული')}
-                              disabled={resolvingId === app._id}
-                              style={{ flex: 1, padding: '6px 10px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              დადასტურება
-                            </button>
-                            <button
-                              onClick={() => handleResolve(app._id, 'უარყოფილი')}
-                              disabled={resolvingId === app._id}
-                              style={{ flex: 1, padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              უარყოფა
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>განხილულია: <strong style={{ color: '#e2e8f0' }}>{app.resolvedBy}</strong></div>
-                          {app.comment && <div style={{ fontSize: '12px', color: '#cbd5e1', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '4px', marginTop: '4px' }}>{app.comment}</div>}
-                          <button
-                            onClick={() => downloadAppDoc(app)}
-                            style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}
-                          >
-                            <FaDownload size={10} /> ჩამოტვირთვა (.docx)
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const AdminStaffManagement: React.FC<{ selectedColor: string }> = ({ selectedColor }) => {
-  const [name, setName] = useState('');
-  const [surname, setSurname] = useState('');
-  const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('rector');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const { data: staffList, refetch, isLoading } = useQuery<any[]>({
-    queryKey: ['admin-staff-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/all');
-      if (!res.ok) throw new Error();
-      return res.json();
-    }
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !surname || !userId || !password) {
-      alert("გთხოვთ შეავსოთ ყველა ველი");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          surname,
-          user_ID: userId,
-          password,
-          role
-        })
-      });
-      if (res.ok) {
-        setName('');
-        setSurname('');
-        setUserId('');
-        setPassword('');
-        setRole('rector');
-        setShowAddForm(false);
-        refetch();
-        alert('ახალი თანამშრომელი წარმატებით დაემატა!');
-      } else {
-        const errData = await res.json();
-        alert(`დამატება ვერ მოხერხდა: ${errData.message || 'შეცდომა'}`);
-      }
-    } catch {
-      alert('კავშირის შეცდომა');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const roleLabels: Record<string, string> = {
-    rector: "რექტორი",
-    prorector: "პრორექტორი",
-    academic: "სასწავლო ნაწილი",
-    clerk: "საქმის მწარმოებელი",
-    secretary: "მდივანი",
-    accountant: "ბუღალტერი",
-    it_manager: "IT მენეჯერი",
-    ped_council: "პედსაბჭოს ხელმძღვანელი",
-    admin: "ადმინისტრატორი",
-    sysadmin: "სისტემური ადმინისტრატორი"
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', color: 'white' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>სკოლის პერსონალის მართვა</h2>
-          <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px', margin: 0 }}>სისტემაში რეგისტრირებული ადმინისტრაციული როლების მართვა</p>
-        </div>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          style={{ padding: '10px 20px', backgroundColor: selectedColor, border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          {showAddForm ? 'დახურვა' : 'ახალი თანამშრომლის დამატება'}
-        </button>
-      </div>
-
-      {showAddForm && (
-        <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '16px', margin: 0 }}>თანამშრომლის რეგისტრაცია</h3>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>სახელი</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="სახელი" style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>გვარი</label>
-                <input type="text" value={surname} onChange={e => setSurname(e.target.value)} placeholder="გვარი" style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} />
-              </div>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>პირადი ნომერი / ID</label>
-                <input type="text" value={userId} onChange={e => setUserId(e.target.value)} placeholder="კაბინეტში შესასვლელი ID" style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>პაროლი</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="პაროლი" style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '300px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>როლი / პოზიცია</label>
-              <select value={role} onChange={e => setRole(e.target.value)} style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}>
-                <option value="rector">რექტორი</option>
-                <option value="prorector">პრორექტორი</option>
-                <option value="academic">სასწავლო ნაწილი</option>
-                <option value="secretary">მდივანი</option>
-                <option value="accountant">ბუღალტერი</option>
-                <option value="it_manager">IT მენეჯერი</option>
-                <option value="clerk">საქმის მწარმოებელი</option>
-                <option value="ped_council">პედსაბჭოს ხელმძღვანელი</option>
-                <option value="admin">ადმინისტრატორი</option>
-                <option value="sysadmin">სისტემური ადმინისტრატორი</option>
-              </select>
-            </div>
-
-            <button type="submit" disabled={loading} style={{ alignSelf: 'flex-end', padding: '10px 24px', backgroundColor: selectedColor, border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-              {loading ? 'რეგისტრირდება...' : 'დამატება'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px' }}>
-        {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>იტვირთება...</div>
-        ) : !staffList || staffList.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>თანამშრომლები არ მოიძებნა.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '13px' }}>
-                  <th style={{ padding: '12px' }}>თანამშრომელი</th>
-                  <th style={{ padding: '12px' }}>პირადი ნომერი / ID</th>
-                  <th style={{ padding: '12px' }}>როლი</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffList.map(s => (
-                  <tr key={s._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '14px' }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#e2e8f0' }}>{s.name} {s.surname}</td>
-                    <td style={{ padding: '12px', color: '#cbd5e1' }}>{s.user_ID}</td>
-                    <td style={{ padding: '12px', color: selectedColor, fontWeight: 'bold' }}>{roleLabels[s.role] || roleLabels.admin}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const AdminPedCouncilMeetings: React.FC<{ adminId: string; selectedColor: string }> = ({ adminId, selectedColor }) => {
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [agenda, setAgenda] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const { data: meetings, refetch, isLoading } = useQuery<any[]>({
-    queryKey: ['admin-ped-meetings'],
-    queryFn: async () => {
-      const res = await fetch('/api/ped-council');
-      if (!res.ok) throw new Error();
-      return res.json();
-    }
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !date || !time) {
-      alert("გთხოვთ შეავსოთ ყველა აუცილებელი ველი");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/ped-council', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          date,
-          time,
-          agenda,
-          scheduledBy: adminId
-        })
-      });
-      if (res.ok) {
-        setTitle('');
-        setDate('');
-        setTime('');
-        setAgenda('');
-        refetch();
-        alert('პედსაბჭოს სხდომა წარმატებით ჩაინიშნა!');
-      } else {
-        alert('სხდომის ჩანიშვნა ვერ მოხერხდა');
-      }
-    } catch {
-      alert('კავშირის შეცდომა');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', color: 'white' }}>
-      
-      {/* Schedule meeting form */}
-      <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>ახალი პედსაბჭოს სხდომის ჩანიშვნა</h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>შეავსეთ სხდომის დეტალები მასწავლებლებისთვის საჩვენებლად</p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>თემა / სათაური *</label>
-              <input 
-                type="text" 
-                value={title} 
-                onChange={e => setTitle(e.target.value)} 
-                placeholder="მაგ. I სემესტრის შეჯამება" 
-                style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} 
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>თარიღი *</label>
-              <input 
-                type="date" 
-                value={date} 
-                onChange={e => setDate(e.target.value)} 
-                style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} 
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>დრო *</label>
-              <input 
-                type="time" 
-                value={time} 
-                onChange={e => setTime(e.target.value)} 
-                style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }} 
-              />
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}>დღის წესრიგი / შინაარსი</label>
-            <textarea 
-              value={agenda} 
-              onChange={e => setAgenda(e.target.value)} 
-              placeholder="შეხვედრის დეტალები..." 
-              rows={4} 
-              style={{ padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none', resize: 'vertical' }} 
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={loading} 
-            style={{ alignSelf: 'flex-end', padding: '10px 24px', backgroundColor: selectedColor, border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: 'opacity 0.2s' }}
-          >
-            {loading ? 'ინიშნება...' : 'სხდომის ჩანიშვნა'}
-          </button>
-        </form>
-      </div>
-
-      {/* List of meetings */}
-      <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>ჩანიშნული სხდომები</h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>პედსაბჭოს მიმდინარე და ძველი სხდომები</p>
-
-        {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>იტვირთება...</div>
-        ) : !meetings || meetings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>ჩანიშნული სხდომები არ მოიძებნა.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '13px' }}>
-                  <th style={{ padding: '12px' }}>თარიღი / დრო</th>
-                  <th style={{ padding: '12px' }}>თემა</th>
-                  <th style={{ padding: '12px' }}>აღწერა / დღის წესრიგი</th>
-                  <th style={{ padding: '12px' }}>ჩამნიშნავი</th>
-                </tr>
-              </thead>
-              <tbody>
-                {meetings.map(m => (
-                  <tr key={m._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '14px' }}>
-                    <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                      {m.date}
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{m.time}</div>
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 'bold', color: '#e2e8f0' }}>{m.title}</td>
-                    <td style={{ padding: '12px', whiteSpace: 'pre-wrap' }}>{m.agenda || '—'}</td>
-                    <td style={{ padding: '12px', color: '#cbd5e1' }}>{m.scheduledByName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-    </div>
-  );
-};
 
 const Admin: React.FC = () => {
     const { selectedColor } = useColor();
     const navigate = useNavigate();
     const logoutButtonStyle: React.CSSProperties = {};
 
-    const loginData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('login') || '{}') : {};
-    const adminId = loginData.user_ID || 'admin';
-    const adminRole = loginData.role || 'admin';
-    const roleLabels: Record<string, string> = {
-        rector: "რექტორი",
-        prorector: "პრორექტორი",
-        academic: "სასწავლო ნაწილი",
-        clerk: "საქმის მწარმოებელი",
-        secretary: "მდივანი",
-        accountant: "ბუღალტერი",
-        it_manager: "IT მენეჯერი",
-        ped_council: "პედსაბჭოს ხელმძღვანელი",
-        admin: "ადმინისტრატორი",
-        sysadmin: "სისტემური ადმინისტრატორი"
-    };
-    const adminName = roleLabels[adminRole] || 'ადმინისტრატორი';
-
     const [boxWidth, setBoxWidth] = useState(350);
     const [view, setView] = useState('main'); // 'main', 'studentOptions', 'studentList', 'addStudentForm', 'teacherList', 'addTeacherForm', 'teacherOptions', 'addClassForm', 'addSubjectForm', 'editClass', 'classHistoryGrades', 'classHistoryParallels', 'classHistoryTable', 'manageCalendars', 'detailedGradeHistory', 'subjectList'
+    const [currentUser, setCurrentUser] = useState<{ user_ID: string; role: string; name?: string; surname?: string } | null>(null);
+    const [adminsList, setAdminsList] = useState<AdminUser[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
+
     const [classes, setClasses] = useState<Class[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [classFilter, setClassFilter] = useState<number | null>(null);
@@ -651,152 +121,28 @@ const Admin: React.FC = () => {
     const [selectedClassForReport, setSelectedClassForReport] = useState<{ id: string; name: string } | null>(null);
     const [showReportGenerator, setShowReportGenerator] = useState(false);
     const [selectedStudentForCard, setSelectedStudentForCard] = useState<Student | null>(null);
+    const [selectedHistoryYear, setSelectedHistoryYear] = useState<string>('');
 
-    const ClassSwitcher: React.FC<{
-        currentClassId: string;
-        viewType: 'history' | 'externals' | 'report';
-        titleSuffix?: string;
-        onClassChange?: (newClassId: string, newClassName: string) => void;
-    }> = ({ currentClassId, viewType, titleSuffix = "", onClassChange }) => {
-        if (!classes || classes.length === 0) return null;
-        if (classes.length === 1) {
-            return (
-                <span style={{ fontWeight: 800, fontSize: '18px', color: 'white' }}>
-                    {classes[0].classname}{titleSuffix}
-                </span>
-            );
-        }
+    const getPromotionAcademicYear = (date = new Date()) => {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        let startYear = month >= 7 ? year : year - 1;
+        let endYear = startYear + 1;
+        return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
+    };
 
-        // Sort classes in Georgian order
-        const sortedClasses = [...classes].sort((a, b) => {
-            const gradeA = parseInt(a.classname.match(/\d+/)?.[0] || '0', 10);
-            const gradeB = parseInt(b.classname.match(/\d+/)?.[0] || '0', 10);
-            if (gradeA !== gradeB) return gradeA - gradeB;
-
-            const letterA = a.classname.match(/[ა-ჰa-zA-Z]/)?.[0] || '';
-            const letterB = b.classname.match(/[ა-ჰa-zA-Z]/)?.[0] || '';
-            return letterA.localeCompare(letterB, 'ka');
+    const getAvailableHistoryYears = () => {
+        const years = [getPromotionAcademicYear(new Date())];
+        classes.forEach(c => {
+            if ((c as any).history) {
+                (c as any).history.forEach((h: any) => {
+                    if (h.year && !years.includes(h.year)) {
+                        years.push(h.year);
+                    }
+                });
+            }
         });
-
-        const currentIndex = sortedClasses.findIndex((cls: any) => cls._id === currentClassId);
-        
-        // Helper function to handle navigation
-        const handleNavigate = (targetId: string, targetName: string) => {
-            if (onClassChange) {
-                onClassChange(targetId, targetName);
-                return;
-            }
-            if (viewType === 'history') {
-                setSelectedClassForHistory({ id: targetId, name: targetName });
-            } else if (viewType === 'externals') {
-                setSelectedClassForExternals({ id: targetId, name: targetName });
-            } else if (viewType === 'report') {
-                setSelectedClassForReport({ id: targetId, name: targetName });
-            }
-        };
-
-        if (currentIndex === -1) {
-            return (
-                <span style={{ fontWeight: 800, fontSize: '18px', color: 'white' }}>
-                    {sortedClasses[0]?.classname || ""}
-                </span>
-            );
-        }
-
-        const prevIndex = (currentIndex - 1 + sortedClasses.length) % sortedClasses.length;
-        const nextIndex = (currentIndex + 1) % sortedClasses.length;
-
-        const prevClass = sortedClasses[prevIndex];
-        const nextClass = sortedClasses[nextIndex];
-
-        return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                padding: '6px 12px',
-                borderRadius: '12px',
-                width: 'fit-content',
-            }}>
-                <button
-                    onClick={() => handleNavigate(prevClass._id, prevClass.classname)}
-                    style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        color: 'white',
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = selectedColor}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                    title={`წინა კლასი: ${prevClass.classname}`}
-                >
-                    <FaChevronLeft size={12} />
-                </button>
-
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <select
-                        value={currentClassId}
-                        onChange={(e) => {
-                            const target = sortedClasses.find(c => c._id === e.target.value);
-                            if (target) handleNavigate(target._id, target.classname);
-                        }}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'white',
-                            fontWeight: 800,
-                            fontSize: '15px',
-                            padding: '4px 20px 4px 4px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            appearance: 'none',
-                            backgroundImage: 'url("data:image/svg+xml;utf8,<svg fill=\'white\' height=\'20\' viewBox=\'0 0 24 24\' width=\'20\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/><path d=\'M0 0h24v24H0z\' fill=\'none\'/></svg>")',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right center',
-                            textAlign: 'center'
-                        }}
-                    >
-                        {sortedClasses.map((cls: any) => (
-                            <option key={cls._id} value={cls._id} style={{ background: '#1e293b', color: 'white' }}>
-                                {cls.classname}{titleSuffix}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <button
-                    onClick={() => handleNavigate(nextClass._id, nextClass.classname)}
-                    style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        color: 'white',
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = selectedColor}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                    title={`შემდეგი კლასი: ${nextClass.classname}`}
-                >
-                    <FaChevronRight size={12} />
-                </button>
-            </div>
-        );
+        return years.sort().reverse();
     };
 
     const showPopup = (message: string, type: 'success' | 'error') => {
@@ -833,30 +179,26 @@ const Admin: React.FC = () => {
 
     const fetchClassHistory = async () => {
         try {
-            // Fetch all classes
-            const classRes = await fetch('/api/classes');
-            if (!classRes.ok) throw new Error('Failed to fetch classes');
-            const classData = await classRes.json();
+            const [classRes, teacherRes, studentRes] = await Promise.all([
+                fetch('/api/classes'),
+                fetch('/api/teacher/all'),
+                fetch('/api/student/all')
+            ]);
+            if (!classRes.ok || !teacherRes.ok || !studentRes.ok) throw new Error('Failed to fetch data');
 
-            // Fetch all teachers (for tutor names)
-            const teacherRes = await fetch('/api/teacher/all');
-            if (!teacherRes.ok) throw new Error('Failed to fetch teachers');
-            const teacherData = await teacherRes.json();
-
-            // Fetch all students (for counting)
-            const studentRes = await fetch('/api/student/all');
-            if (!studentRes.ok) throw new Error('Failed to fetch students');
-            const studentData = await studentRes.json();
+            const [classData, teacherData, studentData] = await Promise.all([
+                classRes.json(),
+                teacherRes.json(),
+                studentRes.json()
+            ]);
 
             // Build the class history array
             const history = classData.map((cls: any) => {
-                // Find tutor name
                 let tutorName = '';
-                if (cls.tutor_id) {
-                    const tutor = teacherData.find((t: any) => t._id === cls.tutor_id);
+                if (cls.damrigebeli) {
+                    const tutor = teacherData.find((t: any) => t._id === cls.damrigebeli);
                     tutorName = tutor ? `${tutor.name} ${tutor.surname}` : '';
                 }
-                // Count students in this class
                 const studentCount = studentData.filter((s: any) => s.classInfo && s.classInfo.classname === cls.classname).length;
                 return {
                     classname: cls.classname,
@@ -870,38 +212,49 @@ const Admin: React.FC = () => {
         }
     };
 
-    const fetchClassHistoryParallels = async (grade: number) => {
+    const fetchClassHistoryParallels = async (grade: number, year?: string) => {
         try {
-            const classRes = await fetch('/api/classes');
-            if (!classRes.ok) throw new Error('Failed to fetch classes');
-            const classData = await classRes.json();
-            // Fetch all teachers (for tutor names)
-            const teacherRes = await fetch('/api/teacher/all');
-            if (!teacherRes.ok) throw new Error('Failed to fetch teachers');
-            const teacherData = await teacherRes.json();
-            // Fetch only students of this grade (for counting)
-            const studentRes = await fetch(`/api/student/grade/${grade}`);
-            if (!studentRes.ok) throw new Error('Failed to fetch students');
-            const studentData = await studentRes.json();
+            const [classRes, teacherRes, studentRes] = await Promise.all([
+                fetch('/api/classes'),
+                fetch('/api/teacher/all'),
+                fetch(`/api/student/grade/${grade}`)
+            ]);
+            if (!classRes.ok || !teacherRes.ok || !studentRes.ok) throw new Error('Failed to fetch data');
+
+            const [classData, teacherData, studentData] = await Promise.all([
+                classRes.json(),
+                teacherRes.json(),
+                studentRes.json()
+            ]);
+
             // Extract parallels, tutor names, and student counts for the selected grade
             const parallels: string[] = [];
             const parallelTutors: { [parallel: string]: string } = {};
             const parallelCounts: { [parallel: string]: number } = {};
             classData.forEach((cls: any) => {
-                const match = cls.classname.match(/^([0-9]+)([ა-ჰ])$/);
+                let classname = cls.classname;
+                if (year) {
+                    const h = cls.history?.find((x: any) => x.year === year);
+                    if (h) {
+                        classname = h.classname;
+                    } else {
+                        return; // Class did not exist in this year
+                    }
+                }
+                const match = classname.match(/^([0-9]+)([ა-ჰ])$/);
                 if (match && parseInt(match[1], 10) === grade) {
                     const parallel = match[2];
                     if (!parallels.includes(parallel)) {
                         parallels.push(parallel);
                     }
                     let tutorName = '';
-                    if (cls.tutor_id) {
-                        const tutor = teacherData.find((t: any) => t._id === cls.tutor_id);
+                    if (cls.damrigebeli) {
+                        const tutor = teacherData.find((t: any) => t._id === cls.damrigebeli);
                         tutorName = tutor ? `${tutor.name} ${tutor.surname}` : '';
                     }
                     parallelTutors[parallel] = tutorName;
                     // Count students in this class
-                    const studentCount = studentData.filter((s: any) => s.classInfo && s.classInfo.classname === cls.classname).length;
+                    const studentCount = studentData.filter((s: any) => s.classInfo && s.classInfo.classname === classname).length;
                     parallelCounts[parallel] = studentCount;
                 }
             });
@@ -915,16 +268,22 @@ const Admin: React.FC = () => {
         }
     };
 
-    const fetchClassHistoryTable = async (grade: number, parallel: string) => {
+    const fetchClassHistoryTable = async (grade: number, parallel: string, year?: string) => {
         try {
             // Fetch all classes
             const classRes = await fetch('/api/classes');
             if (!classRes.ok) throw new Error('Failed to fetch classes');
             const classData = await classRes.json();
-            // Find the class for this grade and parallel
+            
+            // Find the class for this grade and parallel in the given year
+            const targetClassName = `${grade}${parallel}`;
             const classObj = classData.find((cls: any) => {
-                const match = cls.classname.match(/^([0-9]+)([ა-ჰ])$/);
-                return match && parseInt(match[1], 10) === grade && match[2] === parallel;
+                if (!year) {
+                    return cls.classname === targetClassName;
+                } else {
+                    const historyEntry = cls.history?.find((h: any) => h.year === year);
+                    return historyEntry && historyEntry.classname === targetClassName;
+                }
             });
             if (!classObj) {
                 setHistoryTable([]);
@@ -940,13 +299,13 @@ const Admin: React.FC = () => {
             const studentData = await studentRes.json();
             // Find tutor name
             let tutorName = '';
-            if (classObj.tutor_id) {
-                const tutor = teacherData.find((t: any) => t._id === classObj.tutor_id);
+            if (classObj.damrigebeli) {
+                const tutor = teacherData.find((t: any) => t._id === classObj.damrigebeli);
                 tutorName = tutor ? `${tutor.name} ${tutor.surname}` : '';
             }
             // Count students in this class
             const studentCount = studentData.length;
-            setHistoryTable([{ classname: classObj.classname, tutorName, studentCount }]);
+            setHistoryTable([{ classname: targetClassName, tutorName, studentCount }]);
         } catch (err) {
             setHistoryTable([]);
         }
@@ -1136,66 +495,110 @@ const Admin: React.FC = () => {
         textAlign: 'center',
     });
 
-    const allDashboardItems = [
+    const isSuperAdmin = currentUser?.role === 'superadmin' || currentUser?.user_ID === 'kakhi-kakhidze';
+
+    const dashboardItems = [
+        ...(isSuperAdmin ? [{ icon: RiAdminFill, label: 'ადმინისტრატორები' }] : []),
         { icon: FaUserGraduate, label: 'მოსწავლეები' },
         { icon: FaChalkboardTeacher, label: 'მასწავლებლები' },
+
         { icon: IoSchoolSharp, label: 'კლასი' },
         { icon: FaHistory, label: 'ისტორია' },
         { icon: IoStatsChartSharp, label: 'სტატისტიკა' },
-        { icon: FaBookReader, label: 'ექსტერნი' },
+        { icon: FaBookReader, label: 'გამოცდები & ექსტერნატი' },
+        { icon: FaShieldAlt, label: 'მანდატურის დარღვევები' },
+        { icon: FaAward, label: 'წარჩინებულნი & მონიტორინგი' },
         { icon: FaFileAlt, label: 'უწყისი' },
         { icon: FaBookOpen, label: 'ჟურნალის გახსნა/დახურვა' },
         { icon: FaCalendarAlt, label: 'გაკვეთილების კალენდარი' },
         { icon: FaSearch, label: 'დღის სკანირება' },
         { icon: FaBullhorn, label: 'განცხადებები' },
         { icon: FaComments, label: 'ჩატი' },
-        { icon: FaFileAlt, label: 'განაცხადები' },
     ];
 
-    let dashboardItems = allDashboardItems;
-
-    if (adminRole === 'clerk') {
-        dashboardItems = allDashboardItems.filter(item => item.label === 'განაცხადები');
-    } else if (adminRole === 'secretary') {
-        dashboardItems = allDashboardItems.filter(item => ['მოსწავლეები', 'ისტორია', 'განაცხადები', 'ჩატი'].includes(item.label));
-    } else if (adminRole === 'accountant') {
-        dashboardItems = allDashboardItems.filter(item => ['განაცხადები', 'ჩატი'].includes(item.label));
-    } else if (adminRole === 'it_manager') {
-        dashboardItems = allDashboardItems.filter(item => ['ჩატი'].includes(item.label));
-    } else if (adminRole === 'ped_council') {
-        dashboardItems = [
-            ...allDashboardItems.filter(item => item.label === 'ჩატი'),
-            { icon: FaCalendarAlt, label: 'პედსაბჭოს დანიშვნა' }
-        ];
-    } else if (adminRole === 'sysadmin') {
-        dashboardItems = [
-            ...allDashboardItems,
-            { icon: FaChalkboardTeacher, label: 'პერსონალი' }
-        ];
-    }
+    const adminItems: { icon: IconType; label: string }[] = [
+        { icon: MdAdd, label: 'ადმინისტრატორის დამატება' },
+        { icon: RiAdminFill, label: 'ადმინისტრატორების სია' },
+    ];
 
     const classItems: { icon: IconType; label: string }[] = [
         { icon: IoSchoolSharp, label: 'კლასის დამატება' },
         { icon: FaBookReader, label: 'საგნის დამატება' },
         { icon: MdEdit, label: 'კლასის რედაქტირება' },
+        { icon: FaHistory, label: 'კლასების გადაწევა' },
     ];
 
-    const allStudentItems = [
+    const studentItems: { icon: IconType; label: string }[] = [
         { icon: MdAdd, label: 'მოსწავლის დამატება' },
         { icon: FaUserGraduate, label: 'მოსწავლეთა სია' },
     ];
-    const studentItems = adminRole === 'secretary' 
-        ? allStudentItems.filter(item => item.label === 'მოსწავლეთა სია')
-        : allStudentItems;
 
     const teacherItems: { icon: IconType; label: string }[] = [
         { icon: MdAdd, label: 'მასწავლებლის დამატება' },
         { icon: FaChalkboardTeacher, label: 'მასწავლებლების სია' },
     ];
 
+    useEffect(() => {
+        try {
+            const loginDataStr = localStorage.getItem('login');
+            if (!loginDataStr) {
+                navigate('/', { replace: true });
+                return;
+            }
+            const loginData = JSON.parse(loginDataStr);
+            if (loginData.role !== 'admin' && loginData.role !== 'superadmin') {
+                navigate(loginData.role ? `/${loginData.role}` : '/', { replace: true });
+                return;
+            }
+            setCurrentUser(loginData);
+        } catch {
+            navigate('/', { replace: true });
+        }
+    }, [navigate]);
+
+    const fetchAdmins = async () => {
+        try {
+            const res = await fetch('/api/admin/all');
+            if (res.ok) {
+                const data = await res.json();
+                setAdminsList(data);
+            } else {
+                showPopup('ადმინისტრატორების სიის ჩატვირთვა ვერ მოხერხდა.', 'error');
+            }
+        } catch {
+            showPopup('ადმინისტრატორების სიის ჩატვირთვისას მოხდა შეცდომა.', 'error');
+        }
+    };
+
+    const handleAddAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const adminData = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await fetch('/api/admin/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...adminData, requesterId: currentUser?.user_ID }),
+            });
+
+            if (res.ok) {
+                showPopup('ადმინისტრატორი წარმატებით დაემატა.', 'success');
+                setView('adminOptions');
+                fetchAdmins();
+            } else {
+                const data = await res.json();
+                showPopup(`ადმინისტრატორის დამატება ვერ მოხერხდა: ${data.message}`, 'error');
+            }
+        } catch {
+            showPopup('ადმინისტრატორის დამატებისას მოხდა შეცდომა.', 'error');
+        }
+    };
+
     const handleLogout = () => {
+        localStorage.removeItem('login');
         localStorage.removeItem('authToken');
-        navigate('/');
+        navigate('/', { replace: true });
     };
 
     const handleDeleteStudent = async (studentId: string) => {
@@ -1358,12 +761,23 @@ const Admin: React.FC = () => {
 
     const handleCardClick = (label: string) => {
         switch (label) {
+            case 'ადმინისტრატორები':
+                setView('adminOptions');
+                break;
+            case 'ადმინისტრატორის დამატება':
+                setView('addAdminForm');
+                break;
+            case 'ადმინისტრატორების სია':
+                fetchAdmins();
+                setView('adminList');
+                break;
             case 'მოსწავლეები':
                 setView('studentOptions');
                 break;
             case 'მასწავლებლები':
                 setView('teacherOptions');
                 break;
+
             case 'კლასი':
                 setView('classOptions');
                 break;
@@ -1375,7 +789,14 @@ const Admin: React.FC = () => {
                 setView('statistics');
                 break;
             case 'ექსტერნი':
-                setView('externals');
+            case 'გამოცდები & ექსტერნატი':
+                setView('examsManager');
+                break;
+            case 'მანდატურის დარღვევები':
+                setView('infractionsManager');
+                break;
+            case 'წარჩინებულნი & მონიტორინგი':
+                setView('topStudentsMonitor');
                 break;
             case 'უწყისი':
                 setView('reportGeneration');
@@ -1390,22 +811,12 @@ const Admin: React.FC = () => {
             case 'დღის სკანირება':
                 setView('dayScan');
                 break;
-            case 'განაცხადები':
-                setView('applications');
-                break;
-            case 'პედსაბჭოს დანიშვნა':
-                setView('pedCouncilMeetings');
-                break;
-            case 'პერსონალი':
-                setView('staffManagement');
-                break;
             // Student sub-options
             case 'მოსწავლის დამატება':
                 fetchClassesAndShowForm();
                 break;
             case 'მოსწავლეთა სია':
-                fetchAllClasses();
-                setStudents([]);
+                Promise.all([fetchAllClasses(), fetchStudents(null, null)]);
                 setClassFilter(null);
                 setParallelFilter(null);
                 setView('studentList');
@@ -1418,6 +829,7 @@ const Admin: React.FC = () => {
                 fetchTeachers();
                 setView('teacherList');
                 break;
+
             // Class sub-options
             case 'კლასის დამატება':
                 setView('addClassForm');
@@ -1427,6 +839,9 @@ const Admin: React.FC = () => {
                 break;
             case 'კლასის რედაქტირება':
                 setView('editClass');
+                break;
+            case 'კლასების გადაწევა':
+                handlePromoteClasses();
                 break;
             case 'განცხადებები':
                 setView('noticeBoard');
@@ -1442,8 +857,10 @@ const Admin: React.FC = () => {
     const handleBackClick = () => {
         if (view === 'journalOpen') {
             setView('main');
-        } else if (view === 'studentOptions' || view === 'teacherOptions' || view === 'classOptions' || view === 'addClassForm' || view === 'addSubjectForm' || view === 'editClass' || view === 'noticeBoard' || view === 'chat' || view === 'applications') {
+        } else if (view === 'adminOptions' || view === 'studentOptions' || view === 'teacherOptions' || view === 'classOptions' || view === 'addClassForm' || view === 'addSubjectForm' || view === 'editClass' || view === 'noticeBoard' || view === 'chat') {
             setView('main');
+        } else if (view === 'adminList' || view === 'addAdminForm') {
+            setView('adminOptions');
         } else if (view === 'studentList' || view === 'addStudentForm') {
             setView('studentOptions');
         } else if (view === 'teacherList' || view === 'addTeacherForm') {
@@ -1487,6 +904,10 @@ const Admin: React.FC = () => {
         } else if (view === 'studentCard') {
             setSelectedStudentForCard(null);
             setView('studentList');
+        } else if (view === 'examsManager' || view === 'infractionsManager' || view === 'topStudentsMonitor') {
+            setView('main');
+        } else {
+            setView('main');
         }
     };
 
@@ -1505,10 +926,12 @@ const Admin: React.FC = () => {
         }
     };
 
-    const fetchStudents = async (grade: number, parallel?: string | null) => {
+    const fetchStudents = async (grade?: number | null, parallel?: string | null) => {
         try {
-            const qs = parallel ? `?parallel=${encodeURIComponent(parallel)}` : '';
-            const res = await fetch(`/api/student/grade/${grade}${qs}`);
+            const url = grade
+                ? `/api/student/grade/${grade}${parallel ? `?parallel=${encodeURIComponent(parallel)}` : ''}`
+                : '/api/student/all';
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setStudents(data);
@@ -1584,6 +1007,8 @@ const Admin: React.FC = () => {
         }
     };
 
+
+
     const handleAddClass = async (className: string) => {
         try {
             const res = await fetch('/api/class/add', {
@@ -1593,7 +1018,7 @@ const Admin: React.FC = () => {
             });
             if (res.ok) {
                 showPopup('კლასი წარმატებით დაემატა.', 'success');
-                setView('classOptions');
+                setView('main');
                 fetchAllClasses();
             } else {
                 const resBody = await res.text();
@@ -1618,7 +1043,7 @@ const Admin: React.FC = () => {
             });
             if (res.ok) {
                 showPopup('საგანი წარმატებით დაემატა.', 'success');
-                setView('classOptions');
+                setView('main');
                 fetchAllSubjects();
             } else {
                 const resBody = await res.text();
@@ -1643,7 +1068,7 @@ const Admin: React.FC = () => {
             });
             if (res.ok) {
                 showPopup('კლასი წარმატებით განახლდა.', 'success');
-                setView('classOptions');
+                setView('main');
                 fetchAllClasses();
             } else {
                 const resBody = await res.text();
@@ -1659,6 +1084,32 @@ const Admin: React.FC = () => {
         }
     };
 
+    const handlePromoteClasses = async () => {
+        const performPromotion = async () => {
+            try {
+                const res = await fetch('/api/admin/promote-classes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showPopup('კლასები წარმატებით გადაიწია მომდევნო საფეხურზე.', 'success');
+                    fetchAllClasses();
+                } else {
+                    showPopup(data.message || 'კლასების გადაწევა ვერ მოხერხდა.', 'error');
+                }
+            } catch (err) {
+                showPopup('მოხდა შეცდომა სერვერთან კავშირისას.', 'error');
+            }
+            setConfirmation(null);
+        };
+
+        setConfirmation({
+            message: 'ნამდვილად გსურთ ყველა კლასის გადაწევა მომდევნო სასწავლო წლის საფეხურზე? (მაგ. მე-6 კლასი გადავა მე-7 კლასში, საგნები და კალენდარი განულდება)',
+            onConfirm: performPromotion,
+        });
+    };
+
     const handleAddSubjectsToClass = async (classId: string, subjects: string[]) => {
         try {
             const res = await fetch('/api/class/add-subjects', {
@@ -1668,7 +1119,7 @@ const Admin: React.FC = () => {
             });
             if (res.ok) {
                 showPopup('საგნები წარმატებით დაემატა.', 'success');
-                setView('classOptions');
+                setView('main');
                 fetchAllClasses();
             } else {
                 const resBody = await res.text();
@@ -1684,59 +1135,54 @@ const Admin: React.FC = () => {
         }
     };
 
-    const handleGradeClick = (grade: number) => {
+    const handleGradeClick = (grade: number | null) => {
         setClassFilter(grade);
         setParallelFilter(null);
-        fetchStudents(grade);
+        fetchStudents(grade, null);
     };
 
     const handleParallelClick = (parallel: string | null) => {
         setParallelFilter(parallel);
+        if (classFilter) fetchStudents(classFilter, parallel);
     };
 
     const filteredStudents = students.filter(student => {
+        if (!classFilter && !parallelFilter) return true;
         if (!student.classInfo?.classname) return false;
-        const grade = parseInt(student.classInfo.classname);
-        const parallel = student.classInfo.classname.slice(-1);
+        const gradeMatch = student.classInfo.classname.match(/(\d+)/);
+        const grade = gradeMatch ? parseInt(gradeMatch[1], 10) : 0;
+        const parallelMatch = student.classInfo.classname.match(/[ა-ჰa-zA-Z]/);
+        const parallel = parallelMatch ? parallelMatch[0] : '';
         if (classFilter && grade !== classFilter) return false;
         if (parallelFilter && parallel !== parallelFilter) return false;
         return true;
     });
 
-    const seedSubjects = async () => {
-        try {
-            const res = await fetch('/api/seed-subjects', { method: 'POST' });
-            if (res.ok) {
-                showPopup('საგნები წარმატებით დაემატა.', 'success');
-                fetchAllSubjects();
-            } else {
-                showPopup('საგნების დამატება ვერ მოხერხდა.', 'error');
-            }
-        } catch (err) {
-            showPopup('საგნების დამატებისას მოხდა შეცდომა.', 'error');
-        }
-    };
-
     const handleHistoryGradeClick = (grade: number) => {
         setSelectedHistoryGrade(grade);
-        fetchClassHistoryParallels(grade);
+        fetchClassHistoryParallels(grade, selectedHistoryYear);
         setView('classHistoryParallels');
     };
 
     const handleHistoryParallelClick = (parallel: string) => {
         setSelectedHistoryParallel(parallel);
         if (selectedHistoryGrade) {
-            // Find the class for this grade and parallel
+            // Find the class for this grade and parallel in the given year
+            const targetClassName = `${selectedHistoryGrade}${parallel}`;
             const classObj = classes.find((cls: any) => {
-                const match = cls.classname.match(/^([0-9]+)([ა-ჰ])$/);
-                return match && parseInt(match[1], 10) === selectedHistoryGrade && match[2] === parallel;
+                if (!selectedHistoryYear) {
+                    return cls.classname === targetClassName;
+                } else {
+                    const historyEntry = cls.history?.find((h: any) => h.year === selectedHistoryYear);
+                    return historyEntry && historyEntry.classname === targetClassName;
+                }
             });
 
             if (classObj) {
-                setSelectedClassForHistory({ id: classObj._id, name: classObj.classname });
+                setSelectedClassForHistory({ id: classObj._id, name: targetClassName });
                 setView('subjectList');
             } else {
-                fetchClassHistoryTable(selectedHistoryGrade, parallel);
+                fetchClassHistoryTable(selectedHistoryGrade, parallel, selectedHistoryYear);
                 setView('classHistoryTable');
             }
         }
@@ -1753,9 +1199,16 @@ const Admin: React.FC = () => {
     };
 
     const handleViewClassDetails = (className: string) => {
-        const classObj = classes.find((cls: any) => cls.classname === className);
+        const classObj = classes.find((cls: any) => {
+            if (!selectedHistoryYear) {
+                return cls.classname === className;
+            } else {
+                const historyEntry = cls.history?.find((h: any) => h.year === selectedHistoryYear);
+                return historyEntry && historyEntry.classname === className;
+            }
+        });
         if (classObj) {
-            setSelectedClassForHistory({ id: classObj._id, name: classObj.classname });
+            setSelectedClassForHistory({ id: classObj._id, name: className });
             setView('detailedGradeHistory');
         }
     };
@@ -1936,6 +1389,34 @@ const Admin: React.FC = () => {
             }
         };
 
+        const handleDeleteDayScan = async () => {
+            if (!selectedDate) return showPopup('აირჩიეთ თარიღი', 'error');
+            if (!window.confirm(`დარწმუნებული ხართ, რომ გსურთ ${selectedDate} თარიღის ყველა მონაცემის წაშლა?`)) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/grade/delete-day', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: selectedDate,
+                        class_id: selectedClassId !== 'all' && selectedClassId !== '' ? selectedClassId : undefined
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showPopup(data.message || 'დღის მონაცემები წაიშალა', 'success');
+                    setResults([]);
+                    setScanned(false);
+                } else {
+                    showPopup(`წაშლა ვერ მოხერხდა: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showPopup('სერვერის შეცდომა დღის წაშლისას', 'error');
+            } finally {
+                setLoading(false);
+            }
+        };
+
         const hasAnyDiscrepancy = results.some(r => r.isDiscrepancy);
 
         return (
@@ -1969,9 +1450,27 @@ const Admin: React.FC = () => {
                             />
                         </div>
 
-                        <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0 }}>
-                            {loading ? 'მიმდინარეობს სკანირება...' : 'სკანირება'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0, flex: 1 }}>
+                                {loading ? 'მიმდინარეობს...' : 'სკანირება'}
+                            </button>
+                            <button
+                                className="admin-cancel-btn"
+                                onClick={handleDeleteDayScan}
+                                disabled={loading}
+                                style={{
+                                    height: '44px',
+                                    margin: 0,
+                                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    fontWeight: '800',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                დღის წაშლა
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2116,7 +1615,7 @@ const Admin: React.FC = () => {
                                                                                                 )}
                                                                                             </td>
                                                                                             <td style={{ textAlign: 'center', opacity: 0.8, fontSize: '13px' }}>
-                                                                                                {g.pointType === 1 ? 'საშინაო' : g.pointType === 2 ? 'საკლასო' : g.pointType === 3 ? 'შემაჯამებელი' : g.pointType === 4 ? 'ექსტერნი' : 'დასწრება'}
+                                                                                                {g.pointType === 1 ? 'საშინაო' : g.pointType === 2 ? 'საკლასო' : g.pointType === 3 ? 'შემაჯამებელი' : 'დასწრება'}
                                                                                             </td>
                                                                                             <td style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px' }}>{g.time || '-'}</td>
                                                                                         </tr>
@@ -2146,6 +1645,12 @@ const Admin: React.FC = () => {
         switch (view) {
             case 'main':
                 return <AdminDashboard items={dashboardItems} onCardClick={handleCardClick} boxWidth={boxWidth} selectedColor={selectedColor} BoxTitle={BoxTitle} />;
+            case 'adminOptions':
+                return <AdminDashboard items={adminItems} onCardClick={handleCardClick} boxWidth={boxWidth} selectedColor={selectedColor} BoxTitle={BoxTitle} onBackClick={handleBackClick} />;
+            case 'adminList':
+                return <AdminList admins={adminsList} selectedColor={selectedColor} onBackClick={() => setView('adminOptions')} />;
+            case 'addAdminForm':
+                return <AddAdminForm onAddAdmin={handleAddAdmin} onCancel={() => setView('adminOptions')} />;
             case 'studentOptions':
                 return <AdminDashboard items={studentItems} onCardClick={handleCardClick} boxWidth={boxWidth} selectedColor={selectedColor} BoxTitle={BoxTitle} onBackClick={handleBackClick} />;
             case 'teacherOptions':
@@ -2173,10 +1678,45 @@ const Admin: React.FC = () => {
                             <ArrowLeftIcon size={20} /> უკან
                         </button>
                         <h2 style={{ color: 'white', width: '100%', textAlign: 'center', marginBottom: '28px', fontSize: '24px', fontWeight: 800 }}>აირჩიეთ კლასი</h2>
+                        
+                        {/* Year Selector */}
+                        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '28px', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ color: 'white', fontWeight: 'bold', fontSize: '15px' }}>სასწავლო წელი:</span>
+                            <select
+                                value={selectedHistoryYear}
+                                onChange={(e) => {
+                                    setSelectedHistoryYear(e.target.value);
+                                }}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '15px',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {getAvailableHistoryYears().map((y) => (
+                                    <option key={y} value={y === getAvailableHistoryYears()[0] ? "" : y} style={{ background: '#1e293b', color: 'white' }}>
+                                        {y === getAvailableHistoryYears()[0] ? `20${y} (მიმდინარე)` : `20${y}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                         {Array.from(new Set(
                             classes
                                 .map(c => {
-                                    const match = c.classname.match(/^([0-9]+)([ა-ჰ])$/);
+                                    let name = c.classname;
+                                    if (selectedHistoryYear) {
+                                        const h = (c as any).history?.find((x: any) => x.year === selectedHistoryYear);
+                                        if (!h) return null;
+                                        name = h.classname;
+                                    }
+                                    const match = name.match(/^([0-9]+)([ა-ჰ])$/);
                                     return match ? parseInt(match[1], 10) : null;
                                 })
                                 .filter((g): g is number => g !== null)
@@ -2218,7 +1758,8 @@ const Admin: React.FC = () => {
                         <button className="admin-back-btn" onClick={handleHistoryBack} style={{ marginBottom: '20px' }}>
                             <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <h2 style={{ color: 'white', width: '100%', textAlign: 'center', marginBottom: '28px', fontSize: '24px', fontWeight: 800 }}>აირჩიეთ პარალელი</h2>
+                        <h2 style={{ color: 'white', width: '100%', textAlign: 'center', marginBottom: '8px', fontSize: '24px', fontWeight: 800 }}>აირჩიეთ პარალელი</h2>
+                        <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '20px', fontSize: '15px' }}>სასწავლო წელი: {selectedHistoryYear ? `20${selectedHistoryYear}` : `20${getPromotionAcademicYear()} (მიმდინარე)`}</div>
                         {historyParallels.length > 0 ? (
                             <div style={{
                                 display: 'flex',
@@ -2368,7 +1909,7 @@ const Admin: React.FC = () => {
                         logoutButtonStyle={logoutButtonStyle}
                         onBackClick={handleBackClick}
                         onSubjectClick={handleSubjectClick}
-                        classSwitcher={<ClassSwitcher currentClassId={selectedClassForHistory.id} viewType="history" titleSuffix=" - საგნები" />}
+                        selectedYear={selectedHistoryYear}
                     />
                 ) : (
                     <div style={{ color: 'white', textAlign: 'center' }}>კლასი ვერ მოიძებნა</div>
@@ -2383,7 +1924,7 @@ const Admin: React.FC = () => {
                         selectedColor={selectedColor}
                         logoutButtonStyle={logoutButtonStyle}
                         onBackClick={handleBackClick}
-                        classSwitcher={<ClassSwitcher currentClassId={selectedClassForHistory.id} viewType="history" titleSuffix=" - ისტორია" />}
+                        selectedYear={selectedHistoryYear}
                     />
                 ) : (
                     <div style={{ color: 'white', textAlign: 'center' }}>კლასი ვერ მოიძებნა</div>
@@ -2464,7 +2005,6 @@ const Admin: React.FC = () => {
                         logoutButtonStyle={logoutButtonStyle}
                         onBackClick={handleBackClick}
                         onSubjectClick={handleExternalsSubjectClick}
-                        classSwitcher={<ClassSwitcher currentClassId={selectedClassForExternals.id} viewType="externals" titleSuffix=" - საგნები" />}
                     />
                 ) : (
                     <div style={{ color: 'white', textAlign: 'center' }}>კლასი ვერ მოიძებნა</div>
@@ -2479,7 +2019,6 @@ const Admin: React.FC = () => {
                         selectedColor={selectedColor}
                         logoutButtonStyle={logoutButtonStyle}
                         onBackClick={handleBackClick}
-                        classSwitcher={<ClassSwitcher currentClassId={selectedClassForExternals.id} viewType="externals" titleSuffix=" - ექსტერნების ნიშნები" />}
                     />
                 ) : (
                     <div style={{ color: 'white', textAlign: 'center' }}>მონაცემები ვერ მოიძებნა</div>
@@ -2496,7 +2035,6 @@ const Admin: React.FC = () => {
                                 setShowReportGenerator(false);
                                 setSelectedClassForReport(null);
                             }}
-                            classSwitcher={<ClassSwitcher currentClassId={selectedClassForReport.id} viewType="report" titleSuffix=" - უწყისი" />}
                         />
                     );
                 }
@@ -2597,42 +2135,47 @@ const Admin: React.FC = () => {
                 );
             case 'noticeBoard':
                 return (
-                    <div style={{ width: '100%' }}>
+                    <div style={{ width: '100%', maxWidth: '1000px' }}>
                         <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-                            <ArrowLeftIcon size={20} /> უკან დაბრუნება
+                            <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <NoticeBoard allowCreate={true} currentUser={{ id: adminId, name: adminName, role: adminRole }} />
+                        <NoticeBoard currentUser={{ id: 'admin', name: 'ადმინისტრატორი', role: 'admin' }} />
+                    </div>
+                );
+            case 'examsManager':
+                return (
+                    <div style={{ width: '100%', maxWidth: '1100px' }}>
+                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
+                            <ArrowLeftIcon size={20} /> უკან
+                        </button>
+                        <ExamsManager selectedColor={selectedColor} />
+                    </div>
+                );
+            case 'infractionsManager':
+                return (
+                    <div style={{ width: '100%', maxWidth: '1100px' }}>
+                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
+                            <ArrowLeftIcon size={20} /> უკან
+                        </button>
+                        <MandaturiInfractionManager selectedColor={selectedColor} />
+                    </div>
+                );
+            case 'topStudentsMonitor':
+                return (
+                    <div style={{ width: '100%', maxWidth: '1100px' }}>
+                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
+                            <ArrowLeftIcon size={20} /> უკან
+                        </button>
+                        <TopStudentsMonitor selectedColor={selectedColor} />
                     </div>
                 );
             case 'chat':
                 return (
-                    <div style={{ width: '100%' }}>
+                    <div style={{ width: '100%', maxWidth: '1000px' }}>
                         <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-                            <ArrowLeftIcon size={20} /> უკან დაბრუნება
+                            <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <ChatModule currentUser={{ id: adminId, name: adminName, role: adminRole }} />
-                    </div>
-                );
-            case 'applications':
-                return (
-                    <AdminApplicationsPanel adminId={adminId} role={adminRole} handleBackClick={handleBackClick} />
-                );
-            case 'pedCouncilMeetings':
-                return (
-                    <div style={{ width: '100%' }}>
-                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-                            <ArrowLeftIcon size={20} /> უკან დაბრუნება
-                        </button>
-                        <AdminPedCouncilMeetings adminId={adminId} selectedColor={selectedColor} />
-                    </div>
-                );
-            case 'staffManagement':
-                return (
-                    <div style={{ width: '100%' }}>
-                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-                            <ArrowLeftIcon size={20} /> უკან დაბრუნება
-                        </button>
-                        <AdminStaffManagement selectedColor={selectedColor} />
+                        <ChatModule currentUser={{ id: 'admin', name: 'ადმინისტრატორი', role: 'admin' }} />
                     </div>
                 );
             default:
@@ -2649,7 +2192,7 @@ const Admin: React.FC = () => {
                 onClick={handleLogout}
                 className="logout-btn"
             >
-                <FaSignOutAltIcon /> გამოსვლა
+                გასვლა
             </button>
 
             <div className="admin-page-content">
@@ -2799,7 +2342,6 @@ const Admin: React.FC = () => {
                             onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
                             onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
                         >
-                            გაუქმება
                         </button>
                     </div>
                 </div>
@@ -3062,8 +2604,7 @@ const AdminStatisticsPage: React.FC<{
 
             {/* Results */}
             {showResults && (
-                <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                    <AtRiskList classId={selectedClass} className={classes.find(c => c._id === selectedClass)?.classname || ''} />
+                <div style={{ marginTop: '30px' }}>
 
                     <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', color: '#333' }}>

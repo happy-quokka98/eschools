@@ -46,9 +46,9 @@ const ChatModule: React.FC<ChatModuleProps> = ({ currentUser }) => {
 
   // 1. Fetch all messages involving the current user for contacts list compilation
   const { data: allMessages } = useQuery<Message[]>({
-    queryKey: ['all-messages', currentUser.id, currentUser.role],
+    queryKey: ['all-messages', currentUser.id],
     queryFn: async () => {
-      const response = await fetch(`/api/messages?user_id=${currentUser.id}&role=${currentUser.role}`);
+      const response = await fetch(`/api/messages?user_id=${currentUser.id}`);
       if (!response.ok) throw new Error();
       return response.json();
     },
@@ -67,9 +67,9 @@ const ChatModule: React.FC<ChatModuleProps> = ({ currentUser }) => {
 
   // 3. Fetch conversation thread with selected contact
   const { data: activeThread } = useQuery<Message[]>({
-    queryKey: ['active-thread', currentUser.id, currentUser.role, selectedContact?.id],
+    queryKey: ['active-thread', currentUser.id, selectedContact?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/messages?user_id=${currentUser.id}&contact_id=${selectedContact?.id}&role=${currentUser.role}`);
+      const response = await fetch(`/api/messages?user_id=${currentUser.id}&contact_id=${selectedContact?.id}`);
       if (!response.ok) throw new Error();
       return response.json();
     },
@@ -213,7 +213,9 @@ const ChatModule: React.FC<ChatModuleProps> = ({ currentUser }) => {
                     fontSize: '13px',
                     border: '1px solid #cbd5e1',
                     borderRadius: '8px',
-                    outline: 'none'
+                    outline: 'none',
+                    color: '#334155',
+                    backgroundColor: 'white'
                   }}
                 />
               </div>
@@ -247,7 +249,8 @@ const ChatModule: React.FC<ChatModuleProps> = ({ currentUser }) => {
                         fontSize: '13px',
                         cursor: 'pointer',
                         borderBottom: '1px solid #f1f5f9',
-                        transition: 'background-color 0.2s'
+                        transition: 'background-color 0.2s',
+                        color: '#334155'
                       }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -410,7 +413,9 @@ const ChatModule: React.FC<ChatModuleProps> = ({ currentUser }) => {
                   fontSize: '14px',
                   border: '1px solid #cbd5e1',
                   borderRadius: '10px',
-                  outline: 'none'
+                  outline: 'none',
+                  color: '#334155',
+                  backgroundColor: 'white'
                 }}
               />
               <button

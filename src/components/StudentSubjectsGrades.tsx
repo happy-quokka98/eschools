@@ -17,16 +17,18 @@ interface Grade {
     subject_id: string;
     class_id: string;
     pointType: number;
-    point: number;
+    point: number | string;
     date: string;
     time: string;
     comment: string;
     checked: boolean;
+    is_formative?: boolean;
 }
 
 interface SubjectWithGrades {
     subject_id: string;
-    subject_name: string;
+    name?: string;
+    subject_name?: string;
     teacher_id: string;
     teacher_name: string;
     grades: Grade[];
@@ -42,6 +44,7 @@ interface StudentData {
     student_surname: string;
     class_name: string;
     subjects: SubjectWithGrades[];
+    available_years?: string[];
 }
 
 interface StudentSubjectsGradesProps {
@@ -52,11 +55,16 @@ interface StudentSubjectsGradesProps {
 const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId, classId }) => {
     const { selectedColor } = useColor();
     const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
+    const [selectedYear, setSelectedYear] = useState<string>('');
 
     const { data: studentData, isLoading: loading, error: queryError } = useQuery<StudentData>({
-        queryKey: ['student-subjects-grades', studentId, classId],
+        queryKey: ['student-subjects-grades', studentId, classId, selectedYear],
         queryFn: async () => {
-            const response = await fetch(`/api/student/subjects-grades?student_id=${studentId}&class_id=${classId}`);
+            let url = `/api/student/subjects-grades?student_id=${studentId}&class_id=${classId}`;
+            if (selectedYear) {
+                url += `&year=${selectedYear}`;
+            }
+            const response = await fetch(url);
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch student data: ${response.status} ${errorText}`);
@@ -76,7 +84,7 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
         }));
     };
 
-    const formatAvg = (n: number) => (n > 0 ? n.toFixed(1) : '—');
+    const formatAvg = (n: number) => (n >= 0 && n <= 10 ? n.toFixed(1) : '—');
 
     return (
         <div style={{
@@ -94,14 +102,44 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                 padding: '30px',
                 borderRadius: '16px',
                 marginBottom: '30px',
-                textAlign: 'center'
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
             }}>
-                <h1 style={{ margin: '0 0 10px 0', fontSize: '28px' }}>
+                <h1 style={{ margin: '0 0 4px 0', fontSize: '28px' }}>
                     საგნები და ქულები
                 </h1>
                 <p style={{ margin: '0', fontSize: '18px', opacity: 0.9 }}>
                     მოსწავლის საგნების სია
                 </p>
+                {studentData?.available_years && studentData.available_years.length > 1 && (
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>სასწავლო წელი:</span>
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                outline: 'none',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {studentData.available_years.map((y) => (
+                                <option key={y} value={y === studentData.available_years?.[0] ? "" : y} style={{ background: '#1e293b', color: 'white' }}>
+                                    {y === studentData.available_years?.[0] ? `20${y} (მიმდინარე)` : `20${y}`}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             {error && (
@@ -177,7 +215,7 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                             borderBottom: `2px solid ${selectedColor}33`,
                         }}>
                             <h2 style={{ margin: 0, fontSize: '22px', color: selectedColor }}>
-                                {subject.subject_name}
+                                {subject.name || subject.subject_name}
                             </h2>
                             <span style={{ fontSize: '14px', color: '#666' }}>
                                 {subject.teacher_name}
@@ -280,11 +318,19 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                 return (b.time || '').localeCompare(a.time || '');
                                             })
                                             .map((grade) => {
+                                                const isFormative = grade.is_formative || (grade.comment && grade.comment.trim() !== '') || grade.point === 'განმავითარებელი' || typeof grade.point === 'string';
+
                                                 let displayVal = '';
                                                 let bg = '#eee';
                                                 let fg = '#333';
-                                                
-                                                if (grade.point === -1) {
+
+                                                const commentText = grade.comment || (typeof grade.point === 'string' && grade.point !== 'განმავითარებელი' ? grade.point : '');
+
+                                                if (isFormative) {
+                                                    displayVal = commentText || 'განმავითარებელი';
+                                                    bg = 'rgba(245, 158, 11, 0.15)';
+                                                    fg = '#d97706';
+                                                } else if (grade.point === -1) {
                                                     if (grade.checked) {
                                                         displayVal = '✓';
                                                         bg = '#e8f5e9';
@@ -303,14 +349,15 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                     bg = '#e3f2fd';
                                                     fg = '#2196f3';
                                                 } else {
+                                                    const numPt = typeof grade.point === 'number' ? grade.point : (typeof grade.point === 'string' && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : -1);
                                                     displayVal = grade.point.toString();
-                                                    if (grade.point >= 9) {
+                                                    if (numPt >= 9) {
                                                         bg = '#e8f5e9';
                                                         fg = '#4caf50';
-                                                    } else if (grade.point >= 7) {
+                                                    } else if (numPt >= 7) {
                                                         bg = '#fff3e0';
                                                         fg = '#ff9800';
-                                                    } else if (grade.point >= 4) {
+                                                    } else if (numPt >= 4) {
                                                         bg = '#e3f2fd';
                                                         fg = '#2196f3';
                                                     } else {
@@ -319,10 +366,12 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                     }
                                                 }
 
-                                                let typeLabel = 'საშინაო';
-                                                if (grade.pointType === 2) typeLabel = 'საკლასო';
-                                                else if (grade.pointType === 3) typeLabel = 'შემაჯამებელი';
-                                                else if (grade.pointType === 4) typeLabel = 'ექსტერნი';
+                                                let typeLabel = isFormative ? 'განმავითარებელი' : 'საშინაო';
+                                                if (!isFormative) {
+                                                    if (grade.pointType === 2) typeLabel = 'საკლასო';
+                                                    else if (grade.pointType === 3) typeLabel = 'შემაჯამებელი';
+                                                    else if (grade.pointType === 4) typeLabel = 'ექსტერნი';
+                                                }
 
                                                 return (
                                                     <div key={grade._id} style={{
@@ -344,17 +393,19 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                         }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                 <div style={{
-                                                                    width: '40px',
+                                                                    minWidth: '40px',
                                                                     height: '40px',
-                                                                    borderRadius: '50%',
+                                                                    padding: displayVal.length > 3 ? '0 14px' : '0',
+                                                                    borderRadius: displayVal.length > 3 ? '20px' : '50%',
                                                                     backgroundColor: bg,
                                                                     color: fg,
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     justifyContent: 'center',
                                                                     fontWeight: 'bold',
-                                                                    fontSize: displayVal.length > 2 ? '14px' : '18px',
+                                                                    fontSize: displayVal.length > 15 ? '12px' : (displayVal.length > 3 ? '13px' : '18px'),
                                                                     boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
+                                                                    whiteSpace: 'nowrap',
                                                                 }}>
                                                                     {displayVal}
                                                                 </div>
@@ -363,8 +414,8 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                                     <span style={{
                                                                         fontSize: '12px',
                                                                         fontWeight: 'bold',
-                                                                        color: grade.pointType === 3 ? '#ef4444' : (grade.pointType === 1 ? '#f59e0b' : '#555'),
-                                                                        backgroundColor: grade.pointType === 3 ? 'rgba(239, 68, 68, 0.15)' : (grade.pointType === 1 ? 'rgba(245, 158, 11, 0.15)' : '#eee'),
+                                                                        color: isFormative ? '#d97706' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 1 ? '#f59e0b' : '#555')),
+                                                                        backgroundColor: isFormative ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.15)' : (grade.pointType === 1 ? 'rgba(245, 158, 11, 0.15)' : '#eee')),
                                                                         padding: '2px 8px',
                                                                         borderRadius: '12px',
                                                                         marginRight: '8px',
@@ -372,7 +423,7 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                                         {typeLabel}
                                                                     </span>
                                                                     
-                                                                    {grade.point === -1 && (
+                                                                    {grade.point === -1 && !isFormative && (
                                                                         <span style={{ fontSize: '13px', color: grade.checked ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
                                                                             {grade.checked ? 'დასწრება' : 'გაცდენა'}
                                                                         </span>
@@ -392,21 +443,24 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                             </div>
                                                         </div>
 
-                                                        {grade.comment && (
+                                                        {(commentText || isFormative) && (
                                                             <div style={{
                                                                 display: 'flex',
                                                                 alignItems: 'flex-start',
-                                                                gap: '6px',
-                                                                backgroundColor: '#fff',
-                                                                borderLeft: `3px solid ${selectedColor}`,
-                                                                padding: '6px 10px',
-                                                                borderRadius: '0 4px 4px 0',
+                                                                gap: '8px',
+                                                                backgroundColor: '#fffbeb',
+                                                                borderLeft: `4px solid #f59e0b`,
+                                                                padding: '8px 12px',
+                                                                borderRadius: '0 6px 6px 0',
                                                                 fontSize: '13px',
-                                                                color: '#555',
+                                                                color: '#92400e',
                                                                 marginTop: '4px',
                                                             }}>
-                                                                <RegCommentIcon size={12} style={{ marginTop: '3px', flexShrink: 0, color: selectedColor }} />
-                                                                <span style={{ fontStyle: 'italic' }}>{grade.comment}</span>
+                                                                <RegCommentIcon size={14} style={{ marginTop: '2px', flexShrink: 0, color: '#d97706' }} />
+                                                                <span>
+                                                                    <strong style={{ color: '#b45309' }}>განმავითარებელი შეფასება: </strong>
+                                                                    <span style={{ fontStyle: 'italic', fontWeight: 500 }}>{commentText || 'განმავითარებელი შეფასება'}</span>
+                                                                </span>
                                                             </div>
                                                         )}
                                                     </div>

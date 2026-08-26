@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { useColor } from './ColorContext';
+import { useLocation } from 'react-router-dom';
 
 // Map main colors to darker companion background colors
 const getSuitableBackgroundColor = (color: string): string => {
@@ -13,6 +14,8 @@ const getSuitableBackgroundColor = (color: string): string => {
 const AppWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { selectedColor } = useColor();
   const backgroundColor = getSuitableBackgroundColor(selectedColor);
+  const location = useLocation();
+  const isStartPage = location.pathname === '/';
 
   return (
     <div
@@ -23,6 +26,12 @@ const AppWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         boxSizing: 'border-box',
       }}
     >
+      {!isStartPage && (
+        <div className="global-brand-header">
+          <img src="/logo.png" alt="eSchools Logo" className="global-brand-logo" />
+          <span className="global-brand-text">e<span style={{ color: selectedColor }}>Schools</span></span>
+        </div>
+      )}
       {children}
     </div>
   );

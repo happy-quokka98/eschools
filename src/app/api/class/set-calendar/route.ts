@@ -34,6 +34,13 @@ export async function POST(req: NextRequest) {
 
   const db = await getDb();
   const objID = new ObjectId(class_id);
+
+  // Retrieve the old class document before update to check teachers and class name
+  const oldClass = await db.collection("class").findOne({ _id: objID });
+  if (!oldClass) {
+    return NextResponse.json({ message: "კლასი ვერ მოიძებნა" }, { status: 404 });
+  }
+
   const result = await db.collection("class").updateOne(
     { _id: objID },
     { $set: { calendar } }
@@ -41,6 +48,61 @@ export async function POST(req: NextRequest) {
 
   if (result.matchedCount === 0) {
     return NextResponse.json({ message: "კლასი ვერ მოიძებნა" }, { status: 404 });
+  }
+
+  // Find all students in this class
+  const students = await db.collection("students").find({ class_id: objID }).toArray();
+
+  // Find all teachers associated with the class calendar (either in the old calendar or the new one)
+  const teacherIdsSet = new Set<string>();
+  const collectTeachers = (cal: any) => {
+    if (!cal || !Array.isArray(cal)) return;
+    for (const day of cal) {
+      if (!Array.isArray(day)) continue;
+      for (const entry of day) {
+        if (entry && entry.teacher_id && entry.teacher_id.toString() !== "000000000000000000000000") {
+          teacherIdsSet.add(entry.teacher_id.toString());
+        }
+      }
+    }
+  };
+
+  collectTeachers(oldClass.calendar);
+  collectTeachers(calendar);
+  teacherIdsSet.delete("");
+
+  const teacherObjectIds = Array.from(teacherIdsSet).map(id => new ObjectId(id));
+  const teachers = await db.collection("teachers").find({ _id: { $in: teacherObjectIds } }).toArray();
+
+  // Send system message to each student and teacher
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0];
+  const timeStr = today.toTimeString().split(' ')[0];
+
+  const systemMessages: any[] = [];
+  const addMessage = (receiverId: string, receiverName: string, receiverRole: string) => {
+    systemMessages.push({
+      sender_id: "admin",
+      sender_name: "ადმინისტრაცია",
+      sender_role: "admin",
+      receiver_id: receiverId,
+      receiver_name: receiverName,
+      receiver_role: receiverRole,
+      content: `კლასის (${oldClass.classname}) ცხრილი განახლდა. ახალი განრიგი უკვე ხელმისაწვდომია!`,
+      date: dateStr,
+      time: timeStr
+    });
+  };
+
+  for (const student of students) {
+    addMessage(student.user_ID, `${student.name} ${student.surname}`, "student");
+  }
+  for (const teacher of teachers) {
+    addMessage(teacher.user_ID, `${teacher.name} ${teacher.surname}`, "teacher");
+  }
+
+  if (systemMessages.length > 0) {
+    await db.collection("messages").insertMany(systemMessages);
   }
 
   // Rebuild teacher calendars from all classes

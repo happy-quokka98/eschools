@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
 
-const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:i800rknocMNgOOoS@saqme.xinjxxm.mongodb.net/";
+const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@schools.xqta1tx.mongodb.net/";
 const dbName = "school";
 
 function getGradesCollectionName(dateInput?: string | Date): string {
@@ -53,25 +53,46 @@ async function migrate() {
       return;
     }
 
-    console.log(`📦 Found ${existingGrades.length} grades in legacy collection. Starting migration...`);
+    console.log(`📦 Found ${existingGrades.length} grades in legacy collection. Grouping for bulk migration...`);
+
+    // Group grades by target collection
+    const groupedByColl: Record<string, any[]> = {};
+    for (const grade of existingGrades) {
+      const targetCollName = getGradesCollectionName(grade.date);
+      if (!groupedByColl[targetCollName]) {
+        groupedByColl[targetCollName] = [];
+      }
+      groupedByColl[targetCollName].push(grade);
+    }
 
     const stats: Record<string, number> = {};
 
-    for (const grade of existingGrades) {
-      const targetCollName = getGradesCollectionName(grade.date);
-      const targetColl = db.collection(targetCollName);
+    // Process each target collection using bulkWrite operations
+    await Promise.all(
+      Object.entries(groupedByColl).map(async ([collName, grades]) => {
+        const targetColl = db.collection(collName);
 
-      // Upsert by matching student_id, subject_id, and date
-      const filter = {
-        student_id: grade.student_id,
-        subject_id: grade.subject_id,
-        date: grade.date,
-      };
+        const ops = grades.map((grade) => ({
+          updateOne: {
+            filter: {
+              student_id: grade.student_id,
+              subject_id: grade.subject_id,
+              date: grade.date,
+            },
+            update: { $set: grade },
+            upsert: true,
+          },
+        }));
 
-      await targetColl.updateOne(filter, { $set: grade }, { upsert: true });
+        const chunkSize = 1000;
+        for (let i = 0; i < ops.length; i += chunkSize) {
+          const chunk = ops.slice(i, i + chunkSize);
+          await targetColl.bulkWrite(chunk, { ordered: false });
+        }
 
-      stats[targetCollName] = (stats[targetCollName] || 0) + 1;
-    }
+        stats[collName] = grades.length;
+      })
+    );
 
     console.log("\n✅ Migration completed successfully!");
     console.log("-----------------------------------------");
@@ -90,3 +111,4 @@ async function migrate() {
 }
 
 migrate();
+

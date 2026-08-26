@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
 
     for (const grade of grades) {
       grade.time = timeStr;
+      if (!grade.lesson_num) {
+        grade.lesson_num = 1;
+      }
       
       // Convert string IDs to ObjectId for consistent querying
       if (grade.teacher_id && ObjectId.isValid(grade.teacher_id)) {
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
             student_id: grade.student_id,
             subject_id: grade.subject_id,
             date: grade.date,
+            lesson_num: grade.lesson_num,
           },
           update: { $set: grade },
           upsert: true
@@ -54,6 +58,26 @@ export async function POST(req: NextRequest) {
     // Execute bulkWrite for each collection involved
     for (const [collectionName, ops] of Object.entries(operationsByCollection)) {
       await db.collection(collectionName).bulkWrite(ops);
+    }
+
+    // Update student points array with grade ObjectIDs
+    for (const grade of grades) {
+      if (grade.student_id && grade.subject_id && grade.date) {
+        const collectionName = getGradesCollectionName(grade.date);
+        const savedGrade = await db.collection(collectionName).findOne({
+          student_id: grade.student_id,
+          subject_id: grade.subject_id,
+          date: grade.date,
+          lesson_num: grade.lesson_num || 1,
+        });
+
+        if (savedGrade && savedGrade._id) {
+          await db.collection("students").updateOne(
+            { _id: grade.student_id },
+            { $addToSet: { points: savedGrade._id } }
+          );
+        }
+      }
     }
 
     return NextResponse.json({ message: "ნიშნები წარმატებით შეინახა!" });

@@ -4,6 +4,16 @@ import { ObjectId } from "mongodb";
 import type { Grade } from "@/lib/models";
 import { calculateSemesterStats, calculateAnnualStatsWithRawData, calculateStatistics, isFifthGradeClassname } from "@/lib/statistics";
 
+import { getCachedOrFetch } from "@/lib/cache";
+
+const getPromotionAcademicYear = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  let startYear = month >= 7 ? year : year - 1;
+  let endYear = startYear + 1;
+  return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
+};
+
 export async function GET(req: NextRequest) {
   const studentID = req.nextUrl.searchParams.get("student_id");
   const classID = req.nextUrl.searchParams.get("class_id");
@@ -14,26 +24,36 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "student_id და class_id საჭიროა" }, { status: 400 });
   }
 
-  const db = await getDb();
-
-  // Get student info
-  const student = await db.collection("students").findOne({ user_ID: studentID });
-  if (!student) {
-    return NextResponse.json({ message: "მოსწავლე ვერ მოიძებნა" }, { status: 404 });
-  }
-
-  // Get class info
   if (!ObjectId.isValid(classID)) {
     return NextResponse.json({ message: "კლასის ID-ის ფორმატი არასწორია" }, { status: 400 });
   }
-  const classDoc = await db.collection("class").findOne({ _id: new ObjectId(classID) });
+
+  const db = await getDb();
+  const trimmedStudentId = studentID.trim();
+
+  // Find student supporting ObjectId, ID, and user_ID
+  let student = null;
+  if (ObjectId.isValid(trimmedStudentId)) {
+    student = await db.collection("students").findOne({ _id: new ObjectId(trimmedStudentId) });
+  }
+  if (!student) {
+    student = await db.collection("students").findOne({
+      $or: [{ ID: trimmedStudentId }, { user_ID: trimmedStudentId }]
+    });
+  }
+
+  const [classDoc, subjects, teachers] = await Promise.all([
+    db.collection("class").findOne({ _id: new ObjectId(classID) }),
+    getCachedOrFetch("all_subjects", 60000, () => db.collection("subjects").find({}).toArray()),
+    getCachedOrFetch("all_teachers", 60000, () => db.collection("teachers").find({}).toArray()),
+  ]);
+
+  if (!student) {
+    return NextResponse.json({ message: "მოსწავლე ვერ მოიძებნა" }, { status: 404 });
+  }
   if (!classDoc) {
     return NextResponse.json({ message: "კლასი ვერ მოიძებნა" }, { status: 404 });
   }
-
-  // Get all subjects and teachers
-  const subjects = await db.collection("subjects").find({}).toArray();
-  const teachers = await db.collection("teachers").find({}).toArray();
 
   // Get grades for this student
   const studentObjID = student._id;
@@ -44,10 +64,11 @@ export async function GET(req: NextRequest) {
     class_id: classObjID,
   }, { year, date })) as unknown as Grade[];
 
-  // Create maps
+  // Create maps supporting name, subject_name, ID
   const subjectMap: Record<string, { name: string }> = {};
   for (const s of subjects) {
-    subjectMap[s._id.toString()] = { name: s.name };
+    const nameStr = s.name || s.subject_name || s.ID || "";
+    subjectMap[s._id.toString()] = { name: nameStr };
   }
 
   // Group grades by subject
@@ -58,12 +79,24 @@ export async function GET(req: NextRequest) {
     subjectGrades[sid].push(grade);
   }
 
-  const isFifthGrade = isFifthGradeClassname(classDoc.classname);
+  // Determine subjects and classname to use based on the selected year
+  let subjectsToUse = classDoc.subjects || [];
+  let classnameToUse = classDoc.ID || classDoc.classname;
+  
+  if (year) {
+    const historyEntry = classDoc.history?.find((h: any) => h.year === year);
+    if (historyEntry) {
+      subjectsToUse = historyEntry.subjects || [];
+      classnameToUse = historyEntry.ID || historyEntry.classname;
+    }
+  }
+
+  const isFifthGrade = isFifthGradeClassname(classnameToUse);
   const overallStats = calculateStatistics(grades, isFifthGrade);
 
   // Build response
   const responseSubjects = [];
-  for (const classSubject of classDoc.subjects || []) {
+  for (const classSubject of subjectsToUse) {
     const subjectIDStr = classSubject.subject_id.toString();
     const teacherIDStr = classSubject.teacher_id.toString();
 
@@ -86,11 +119,13 @@ export async function GET(req: NextRequest) {
 
     let validGrades = 0;
     for (const g of gradesList) {
-      if (g.point >= 0) validGrades++;
+      const pt = typeof g.point === 'number' ? g.point : (typeof g.point === 'string' && !isNaN(parseInt(g.point, 10)) ? parseInt(g.point, 10) : -1);
+      if (pt >= 0 && pt <= 10 && !g.is_formative && g.point !== -3) validGrades++;
     }
 
     responseSubjects.push({
       subject_id: subjectIDStr,
+      name: subject.name,
       subject_name: subject.name,
       teacher_id: teacherIDStr,
       teacher_name: teacherName,
@@ -103,11 +138,22 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const currentYearStr = getPromotionAcademicYear(new Date());
+  const availableYears = [currentYearStr];
+  if (classDoc.history) {
+    for (const h of classDoc.history) {
+      if (h.year && !availableYears.includes(h.year)) {
+        availableYears.push(h.year);
+      }
+    }
+  }
+
   return NextResponse.json({
     student_name: student.name,
     student_surname: student.surname,
-    class_name: classDoc.classname,
+    class_name: classnameToUse,
     subjects: responseSubjects,
+    available_years: availableYears,
     overall: {
       first_semester_average: overallStats.first_semester.average,
       second_semester_average: overallStats.second_semester.average,

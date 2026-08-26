@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "../App.css";
 
 export const metadata: Metadata = {
-  title: "eSchools - ონლაინ ჟურნალი",
+  title: "სკოლის ელექტრონული ჟურნალი - eSchools",
   description: "სასკოლო მართვის სისტემა",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -13,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ka">
-      <body>{children}</body>
+    <html lang="ka" suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

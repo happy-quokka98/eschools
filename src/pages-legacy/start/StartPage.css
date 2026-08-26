@@ -42,6 +42,43 @@
     max-width: 800px;
 }
 
+.start-page-brand {
+    position: absolute;
+    top: 24px;
+    left: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 20;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.start-page-brand:hover {
+    transform: translateY(-2px);
+}
+
+.start-page-logo-small {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    filter: invert(1);
+    mix-blend-mode: screen;
+    transition: filter 0.3s ease;
+}
+
+.start-page-brand:hover .start-page-logo-small {
+    filter: invert(1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+}
+
+.start-page-brand-text {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    text-transform: uppercase;
+    font-family: inherit;
+}
+
 .start-page-title {
     font-size: clamp(28px, 6vw, 44px);
     font-weight: 800;
@@ -68,16 +105,10 @@
 
 .start-page-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
     width: 100%;
-    max-width: 700px;
-}
-
-@media (max-width: 640px) {
-    .start-page-grid {
-        grid-template-columns: 1fr;
-    }
+    max-width: 1000px;
 }
 
 .role-card {
@@ -187,7 +218,17 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
     .start-page-wrapper {
-        padding: 40px 16px;
+        padding: 90px 16px 40px 16px;
+    }
+
+    .start-page-brand {
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .start-page-brand:hover {
+        transform: translateX(-50%) translateY(-2px);
     }
     
     .start-page-content {

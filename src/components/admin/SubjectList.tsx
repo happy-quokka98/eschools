@@ -27,7 +27,7 @@ interface ClassSubject {
 interface Class {
     _id: string;
     classname: string;
-    tutor_id?: string;
+    damrigebeli?: string;
     subjects: ClassSubject[];
 }
 
@@ -38,7 +38,7 @@ interface SubjectListProps {
     logoutButtonStyle: React.CSSProperties;
     onBackClick: () => void;
     onSubjectClick: (subjectId: string, subjectName: string) => void;
-    classSwitcher?: React.ReactNode;
+    selectedYear?: string;
 }
 
 const SubjectList: React.FC<SubjectListProps> = ({
@@ -47,7 +47,7 @@ const SubjectList: React.FC<SubjectListProps> = ({
     selectedColor,
     onBackClick,
     onSubjectClick,
-    classSwitcher
+    selectedYear
 }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -69,6 +69,13 @@ const SubjectList: React.FC<SubjectListProps> = ({
                 const classesRes = await fetch('/api/classes');
                 const classesData = await classesRes.json();
                 const foundClass = classesData.find((cls: any) => cls._id === classId);
+                
+                if (foundClass && selectedYear) {
+                    const historyEntry = foundClass.history?.find((h: any) => h.year === selectedYear);
+                    if (historyEntry) {
+                        foundClass.subjects = historyEntry.subjects || [];
+                    }
+                }
                 setClassData(foundClass);
 
                 setLoading(false);
@@ -79,13 +86,17 @@ const SubjectList: React.FC<SubjectListProps> = ({
         };
 
         fetchData();
-    }, [classId]);
+    }, [classId, selectedYear]);
 
     const downloadClassHistory = async () => {
         if (!classData) return;
         setDownloading(true);
         try {
-            const gradesRes = await fetch(`/api/grades?class_id=${classId}`);
+            let gradesUrl = `/api/grades?class_id=${classId}`;
+            if (selectedYear) {
+                gradesUrl += `&year=${selectedYear}`;
+            }
+            const gradesRes = await fetch(gradesUrl);
             if (!gradesRes.ok) throw new Error(`Failed to fetch grades`);
             const gradesData = await gradesRes.json();
             const grades = Array.isArray(gradesData) ? gradesData : [];
@@ -170,7 +181,7 @@ const SubjectList: React.FC<SubjectListProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                {classSwitcher ? classSwitcher : <h2 className="admin-view-title">{className} - საგნები</h2>}
+                <h2 className="admin-view-title">{className} - საგნები</h2>
                 <button
                     className="admin-action-btn"
                     onClick={downloadClassHistory}

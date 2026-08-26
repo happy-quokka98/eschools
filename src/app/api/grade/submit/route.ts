@@ -45,6 +45,14 @@ export async function POST(req: NextRequest) {
   grade.time = new Date().toTimeString().split(" ")[0];
 
   const collectionName = getGradesCollectionName(grade.date);
-  await db.collection(collectionName).insertOne(grade);
+  const insertResult = await db.collection(collectionName).insertOne(grade);
+
+  if (insertResult.insertedId && grade.student_id) {
+    await db.collection("students").updateOne(
+      { _id: grade.student_id },
+      { $addToSet: { points: insertResult.insertedId } }
+    );
+  }
+
   return NextResponse.json({ message: "ნიშანი წარმატებით დაემატა ან განახლდა!" });
 }
