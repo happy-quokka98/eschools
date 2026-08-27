@@ -1239,178 +1239,88 @@ const Admin: React.FC = () => {
     };
 
     const DayScanPage: React.FC = () => {
-        const [selectedClassId, setSelectedClassId] = useState<string>('');
-        const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const [scanMode, setScanMode] = useState<'single' | 'range'>('range');
+        const [selectedClassId, setSelectedClassId] = useState<string>('all');
+        const [startDate, setStartDate] = useState<string>(todayStr);
+        const [endDate, setEndDate] = useState<string>(todayStr);
+        const [onlyDiscrepancies, setOnlyDiscrepancies] = useState<boolean>(true);
         const [loading, setLoading] = useState(false);
-        const [results, setResults] = useState<any[]>([]);
         const [scanned, setScanned] = useState(false);
-        const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+        const [scanResponse, setScanResponse] = useState<{
+            totalEntries: number;
+            discrepancyEntriesCount: number;
+            results: any[];
+        }>({ totalEntries: 0, discrepancyEntriesCount: 0, results: [] });
+        const [expandedCardKey, setExpandedCardKey] = useState<Record<string, boolean>>({});
+        const [expandedSubjectMap, setExpandedSubjectMap] = useState<Record<string, boolean>>({});
 
-        // Sort classes in Georgian order
         const sortedClasses = [...classes].sort((a, b) => {
             const gradeA = parseInt(a.classname.match(/\d+/)?.[0] || '0', 10);
             const gradeB = parseInt(b.classname.match(/\d+/)?.[0] || '0', 10);
             if (gradeA !== gradeB) return gradeA - gradeB;
-
             const letterA = a.classname.match(/[ა-ჰa-zA-Z]/)?.[0] || '';
             const letterB = b.classname.match(/[ა-ჰa-zA-Z]/)?.[0] || '';
             return letterA.localeCompare(letterB, 'ka');
         });
 
-        const toggleRow = (subjectId: string) => {
-            setExpandedRows(prev => ({
-                ...prev,
-                [subjectId]: !prev[subjectId]
-            }));
+        const toggleCard = (key: string) => {
+            setExpandedCardKey(prev => ({ ...prev, [key]: !prev[key] }));
+        };
+
+        const toggleSubject = (key: string) => {
+            setExpandedSubjectMap(prev => ({ ...prev, [key]: !prev[key] }));
         };
 
         const handleScan = async () => {
-            if (!selectedClassId) {
-                alert('გთხოვთ აირჩიოთ კლასი');
-                return;
-            }
             setLoading(true);
             setScanned(true);
-            setExpandedRows({});
+            setExpandedCardKey({});
+            setExpandedSubjectMap({});
             try {
-                // Fetch students of selected class
-                const studentsRes = await fetch('/api/student/all');
-                const allStus = await studentsRes.json();
-                const filteredStus = allStus.filter((s: any) => s.classInfo && s.classInfo._id === selectedClassId);
+                const sDate = startDate;
+                const eDate = scanMode === 'single' ? startDate : endDate;
 
-                // Fetch all grades/attendance records for this class
-                const gradesRes = await fetch(`/api/grades?class_id=${selectedClassId}`);
-                const allGrades = await gradesRes.json();
-
-                // Filter grades by date
-                const dayGrades = allGrades.filter((g: any) => g.date === selectedDate);
-
-                // Group grades by subject_id
-                const gradesBySubject: Record<string, any[]> = {};
-                dayGrades.forEach((g: any) => {
-                    if (!gradesBySubject[g.subject_id]) {
-                        gradesBySubject[g.subject_id] = [];
-                    }
-                    gradesBySubject[g.subject_id].push(g);
+                const query = new URLSearchParams({
+                    startDate: sDate,
+                    endDate: eDate,
+                    classId: selectedClassId || 'all',
+                    onlyDiscrepancies: onlyDiscrepancies ? 'true' : 'false'
                 });
 
-                // Get all teachers for name mapping
-                const teachersRes = await fetch('/api/teacher/all');
-                const allTeachers = await teachersRes.json();
+                const res = await fetch(`/api/admin/day-scan?${query.toString()}`);
+                const data = await res.json();
 
-                // Evaluate attendance for each subject
-                const evaluations = Object.entries(gradesBySubject).map(([subjId, subjGrades]) => {
-                    // Group by student_id to get the unique attendance
-                    const studentCheckedMap: Record<string, boolean> = {};
-                    subjGrades.forEach(g => {
-                        studentCheckedMap[g.student_id] = g.checked;
-                    });
-
-                    const presentCount = Object.values(studentCheckedMap).filter(c => c === true).length;
-                    const absentCount = Object.values(studentCheckedMap).filter(c => c === false).length;
-                    const total = presentCount + absentCount;
-                    const rate = total > 0 ? (presentCount / total) * 100 : 0;
-
-                    const absentStudentIds = Object.entries(studentCheckedMap)
-                        .filter(([_, c]) => c === false)
-                        .map(([sid]) => sid);
-
-                    const absentStudentNames = absentStudentIds.map(sid => {
-                        const stu = filteredStus.find((s: any) => s._id === sid);
-                        return stu ? `${stu.name} ${stu.surname}` : 'უცნობი მოსწავლე';
-                    });
-
-                    const absentKey = [...absentStudentIds].sort().join(',');
-
-                    const subjectName = subjects.find(s => s._id === subjId)?.name || 'უცნობი საგანი';
-                    
-                    const teacherId = subjGrades[0]?.teacher_id;
-                    const teacherObj = allTeachers.find((t: any) => t._id === teacherId);
-                    const teacherName = teacherObj ? `${teacherObj.name} ${teacherObj.surname}` : 'უცნობი მასწავლებელი';
-
-                    const gradesList = subjGrades.map(g => {
-                        const stu = filteredStus.find((s: any) => s._id === g.student_id);
-                        const studentName = stu ? `${stu.name} ${stu.surname}` : 'უცნობი მოსწავლე';
-                        return {
-                            studentId: g.student_id,
-                            studentName,
-                            point: g.point,
-                            pointType: g.pointType,
-                            checked: g.checked,
-                            time: g.time
-                        };
-                    }).sort((a, b) => a.studentName.localeCompare(b.studentName, 'ka'));
-
-                    return {
-                        subjectId: subjId,
-                        subjectName,
-                        teacherName,
-                        presentCount,
-                        absentCount,
-                        total,
-                        rate,
-                        absentStudentIds,
-                        absentStudentNames,
-                        absentKey,
-                        gradesList
-                    };
-                });
-
-                // Detect discrepancies
-                if (evaluations.length >= 2) {
-                    const keyFrequencies: Record<string, number> = {};
-                    evaluations.forEach(ev => {
-                        keyFrequencies[ev.absentKey] = (keyFrequencies[ev.absentKey] || 0) + 1;
-                    });
-
-                    let majorityKey = '';
-                    let maxFreq = 0;
-                    Object.entries(keyFrequencies).forEach(([key, freq]) => {
-                        if (freq > maxFreq) {
-                            maxFreq = freq;
-                            majorityKey = key;
-                        }
-                    });
-
-                    const finalResults = evaluations.map(ev => ({
-                        ...ev,
-                        isDiscrepancy: ev.absentKey !== majorityKey
-                    }));
-                    setResults(finalResults);
-                } else {
-                    const finalResults = evaluations.map(ev => ({
-                        ...ev,
-                        isDiscrepancy: false
-                    }));
-                    setResults(finalResults);
+                if (!res.ok) {
+                    throw new Error(data.message || 'სკანირება ვერ მოხერხდა');
                 }
-            } catch (err) {
+
+                setScanResponse(data);
+            } catch (err: any) {
                 console.error(err);
-                showPopup('სკანირებისას მოხდა შეცდომა.', 'error');
+                showPopup(err.message || 'სკანირებისას მოხდა შეცდომა.', 'error');
             } finally {
                 setLoading(false);
             }
         };
 
-        const handleDeleteDayScan = async () => {
-            if (!selectedDate) return showPopup('აირჩიეთ თარიღი', 'error');
-            if (!window.confirm(`დარწმუნებული ხართ, რომ გსურთ ${selectedDate} თარიღის ყველა მონაცემის წაშლა?`)) return;
+        const handleDeleteEntry = async (dateStr: string, cId: string, classNameStr: string) => {
+            if (!window.confirm(`დარწმუნებული ხართ, რომ გსურთ კლასის "${classNameStr}" - ${dateStr} თარიღის ყველა მონაცემის წაშლა?`)) return;
             setLoading(true);
             try {
                 const res = await fetch('/api/grade/delete-day', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        date: selectedDate,
-                        class_id: selectedClassId !== 'all' && selectedClassId !== '' ? selectedClassId : undefined,
+                        date: dateStr,
+                        class_id: cId !== 'all' ? cId : undefined,
                         isAdmin: true
                     })
                 });
                 const data = await res.json();
                 if (res.ok) {
                     showPopup(data.message || 'დღის მონაცემები წაიშალა', 'success');
-                    setResults([]);
-                    setScanned(false);
+                    await handleScan();
                 } else {
                     showPopup(`წაშლა ვერ მოხერხდა: ${data.message}`, 'error');
                 }
@@ -1421,22 +1331,57 @@ const Admin: React.FC = () => {
             }
         };
 
-        const hasAnyDiscrepancy = results.some(r => r.isDiscrepancy);
-
         return (
-            <div className="admin-view-container animate-fade-in-down" style={{ width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
+            <div className="admin-view-container animate-fade-in-down" style={{ width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
                 <button onClick={() => setView('main')} className="admin-back-btn" style={{ marginBottom: '24px' }}>
                     უკან დაბრუნება
                 </button>
 
                 <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '25px' }}>
-                    <h2 className="admin-form-title">დღის სკანირება</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                        <h2 className="admin-form-title" style={{ margin: 0 }}>🔍 დღის სკანირება & დარღვევები</h2>
+                        
+                        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setScanMode('range')}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: scanMode === 'range' ? selectedColor : 'transparent',
+                                    color: 'white',
+                                    fontWeight: scanMode === 'range' ? 800 : 500,
+                                    cursor: 'pointer',
+                                    fontSize: '13px'
+                                }}
+                            >
+                                🗓️ თარიღების დიაპაზონი
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setScanMode('single')}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: scanMode === 'single' ? selectedColor : 'transparent',
+                                    color: 'white',
+                                    fontWeight: scanMode === 'single' ? 800 : 500,
+                                    cursor: 'pointer',
+                                    fontSize: '13px'
+                                }}
+                            >
+                                📅 1 კონკრეტული დღე
+                            </button>
+                        </div>
+                    </div>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end' }}>
                         <div className="admin-form-group" style={{ margin: 0 }}>
                             <label className="admin-label">კლასი:</label>
                             <select className="admin-select" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
-                                <option value="">აირჩიეთ კლასი</option>
+                                <option value="all">🏫 ყველა კლასი</option>
                                 {sortedClasses.map(cls => (
                                     <option key={cls._id} value={cls._id}>{cls.classname}</option>
                                 ))}
@@ -1444,200 +1389,283 @@ const Admin: React.FC = () => {
                         </div>
 
                         <div className="admin-form-group" style={{ margin: 0 }}>
-                            <label className="admin-label">თარიღი:</label>
+                            <label className="admin-label">
+                                {scanMode === 'range' ? 'საწყისი თარიღი:' : 'თარიღი:'}
+                            </label>
                             <input
                                 type="date"
                                 className="admin-select"
                                 style={{ colorScheme: 'dark', color: 'white' }}
-                                value={selectedDate}
-                                onChange={e => setSelectedDate(e.target.value)}
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
                             />
                         </div>
 
+                        {scanMode === 'range' && (
+                            <div className="admin-form-group" style={{ margin: 0 }}>
+                                <label className="admin-label">საბოლოო თარიღი:</label>
+                                <input
+                                    type="date"
+                                    className="admin-select"
+                                    style={{ colorScheme: 'dark', color: 'white' }}
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        <div className="admin-form-group" style={{ margin: 0, display: 'flex', alignItems: 'center', height: '44px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#cbd5e1', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={onlyDiscrepancies}
+                                    onChange={e => setOnlyDiscrepancies(e.target.checked)}
+                                    style={{ width: '18px', height: '18px', accentColor: '#ef4444' }}
+                                />
+                                ⚠️ მხოლოდ დარღვევები / ცდომილებები
+                            </label>
+                        </div>
+
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0, flex: 1 }}>
-                                {loading ? 'მიმდინარეობს...' : 'სკანირება'}
-                            </button>
-                            <button
-                                className="admin-cancel-btn"
-                                onClick={handleDeleteDayScan}
-                                disabled={loading}
-                                style={{
-                                    height: '44px',
-                                    margin: 0,
-                                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    fontWeight: '800',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                დღის წაშლა
+                            <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0, flex: 1, fontWeight: '800' }}>
+                                {loading ? 'მიმდინარეობს სკანირება...' : '🚀 სკანირება'}
                             </button>
                         </div>
                     </div>
                 </div>
 
                 {scanned && !loading && (
-                    <div className="admin-list-container animate-zoom-in" style={{ padding: '24px' }}>
-                        {results.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.6)' }}>
-                                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>მონაცემები ვერ მოიძებნა</div>
-                                <div>არჩეულ კლასში მითითებულ დღეს ნიშნები ან სწრებადობის ჩანაწერები არ ფიქსირდება.</div>
+                    <div className="animate-zoom-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                            <div style={{
+                                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(185, 28, 28, 0.05))',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                borderRadius: '16px',
+                                padding: '18px',
+                                color: '#fca5a5'
+                            }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', opacity: 0.8 }}>⚠️ ნაპოვნი ცდომილებები</div>
+                                <div style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>
+                                    {scanResponse.discrepancyEntriesCount} <span style={{ fontSize: '14px', fontWeight: 500, opacity: 0.7 }}>შემთხვევა</span>
+                                </div>
+                            </div>
+
+                            <div style={{
+                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(29, 78, 216, 0.05))',
+                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                borderRadius: '16px',
+                                padding: '18px',
+                                color: '#93c5fd'
+                            }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', opacity: 0.8 }}>📋 სულ სკანირებული ჩანაწერი</div>
+                                <div style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>
+                                    {scanResponse.totalEntries} <span style={{ fontSize: '14px', fontWeight: 500, opacity: 0.7 }}>დღე/კლასი</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {scanResponse.results.length === 0 ? (
+                            <div className="admin-list-container" style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.6)' }}>
+                                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>✅ დარღვევები / ცდომილებები ვერ მოიძებნა</div>
+                                <div>მითითებულ პერიოდში ყველა საგანში სწრებადობის მონაცემები თანხვედრაშია.</div>
                             </div>
                         ) : (
-                            <>
-                                {hasAnyDiscrepancy ? (
-                                    <div style={{ 
-                                        background: 'rgba(244, 67, 54, 0.1)', 
-                                        border: '1px solid rgba(244, 67, 54, 0.3)', 
-                                        borderRadius: '12px', 
-                                        padding: '16px 20px', 
-                                        marginBottom: '24px',
-                                        color: '#ff8a80',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '6px'
-                                    }}>
-                                        <div style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            ⚠️ ყურადღება! აღმოჩენილია სწრებადობის შეუსაბამობა
-                                        </div>
-                                        <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                                            ზოგიერთ საგანში დაფიქსირებულია განსხვავებული სწრებადობის მაჩვენებელი. გთხოვთ გადაამოწმოთ ქვემოთ მონიშნული საგნები.
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div style={{ 
-                                        background: 'rgba(76, 175, 80, 0.1)', 
-                                        border: '1px solid rgba(76, 175, 80, 0.3)', 
-                                        borderRadius: '12px', 
-                                        padding: '16px 20px', 
-                                        marginBottom: '24px',
-                                        color: '#b9f6ca',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '6px'
-                                    }}>
-                                        <div style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            ✅ სწრებადობა თანხვედრაშია
-                                        </div>
-                                        <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                                            ყველა საგანში დაფიქსირებულია იდენტური სწრებადობის მაჩვენებლები.
-                                        </div>
-                                    </div>
-                                )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                {scanResponse.results.map((item: any) => {
+                                    const cardKey = `${item.classId}_${item.date}`;
+                                    const isExpanded = !!expandedCardKey[cardKey];
 
-                                <div className="admin-table-wrapper">
-                                    <table className="admin-table">
-                                        <thead>
-                                            <tr>
-                                                <th>საგანი</th>
-                                                <th>მასწავლებელი</th>
-                                                <th style={{ textAlign: 'center' }}>სულ შეფასდა</th>
-                                                <th style={{ textAlign: 'center' }}>დაესწრო</th>
-                                                <th style={{ textAlign: 'center' }}>გააცდინა</th>
-                                                <th style={{ textAlign: 'center' }}>სწრებადობა (%)</th>
-                                                <th style={{ textAlign: 'center' }}>დეტალები</th>
-                                                <th style={{ textAlign: 'center' }}>სტატუსი</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {results.map((r, idx) => {
-                                                const isExpanded = !!expandedRows[r.subjectId];
-                                                return (
-                                                    <React.Fragment key={r.subjectId}>
-                                                        <tr style={r.isDiscrepancy ? { backgroundColor: 'rgba(239, 68, 68, 0.08)' } : {}}>
-                                                            <td style={{ fontWeight: 700 }}>{r.subjectName}</td>
-                                                            <td>{r.teacherName}</td>
-                                                            <td style={{ textAlign: 'center' }}>{r.total}</td>
-                                                            <td style={{ textAlign: 'center', color: '#4caf50', fontWeight: 'bold' }}>{r.presentCount}</td>
-                                                            <td style={{ textAlign: 'center', color: '#f44336', fontWeight: 'bold' }}>{r.absentCount}</td>
-                                                            <td style={{ textAlign: 'center', fontWeight: '800' }}>
-                                                                {r.rate.toFixed(0)}%
-                                                            </td>
-                                                            <td style={{ textAlign: 'center' }}>
-                                                                <button 
-                                                                    className="admin-table-action-btn" 
-                                                                    style={{ 
-                                                                        backgroundColor: isExpanded ? '#64748b' : selectedColor,
-                                                                        padding: '6px 14px',
-                                                                        fontSize: '12px'
-                                                                    }} 
-                                                                    onClick={() => toggleRow(r.subjectId)}
-                                                                >
-                                                                    {isExpanded ? 'ჩაკეცვა' : 'გაშლა'}
-                                                                </button>
-                                                            </td>
-                                                            <td style={{ textAlign: 'center' }}>
-                                                                {r.isDiscrepancy ? (
-                                                                    <span className="status-badge low" style={{ textTransform: 'none', fontSize: '11px', padding: '4px 8px' }}>
-                                                                        განსხვავებული
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="status-badge high" style={{ textTransform: 'none', fontSize: '11px', padding: '4px 8px' }}>
-                                                                        ნორმალური
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                        {isExpanded && (
-                                                            <tr>
-                                                                <td colSpan={8} style={{ padding: '16px 24px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                                        <div style={{ fontWeight: 'bold', color: selectedColor, fontSize: '14px', textTransform: 'none' }}>
-                                                                            ჩაწერილი ნიშნები და სწრებადობა ({r.subjectName}):
-                                                                        </div>
-                                                                        <div className="admin-table-wrapper" style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' }}>
-                                                                            <table className="admin-table" style={{ margin: 0, background: 'rgba(0,0,0,0.1)' }}>
-                                                                                <thead>
-                                                                                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                                                                        <th>მოსწავლე</th>
-                                                                                        <th style={{ textAlign: 'center' }}>სწრებადობა</th>
-                                                                                        <th style={{ textAlign: 'center' }}>ნიშანი</th>
-                                                                                        <th style={{ textAlign: 'center' }}>ტიპი</th>
-                                                                                        <th style={{ textAlign: 'center' }}>დრო</th>
-                                                                                    </tr>
-                                                                                </thead>
-                                                                                <tbody>
-                                                                                    {r.gradesList.map((g: any, gIdx: number) => (
-                                                                                        <tr key={gIdx}>
-                                                                                            <td style={{ fontWeight: 600 }}>{g.studentName}</td>
-                                                                                            <td style={{ textAlign: 'center' }}>
-                                                                                                {g.checked ? (
-                                                                                                    <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ დაესწრო</span>
-                                                                                                ) : (
-                                                                                                    <span style={{ color: '#f44336', fontWeight: 'bold' }}>✗ გააცდინა</span>
-                                                                                                )}
-                                                                                            </td>
-                                                                                            <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '15px' }}>
-                                                                                                {g.point >= 0 ? (
-                                                                                                    <span style={{ color: g.point >= 9 ? '#4caf50' : g.point >= 7 ? '#ff9800' : '#f44336' }}>
-                                                                                                        {g.point}
-                                                                                                    </span>
-                                                                                                ) : (
-                                                                                                    <span style={{ opacity: 0.5 }}>-</span>
-                                                                                                )}
-                                                                                            </td>
-                                                                                            <td style={{ textAlign: 'center', opacity: 0.8, fontSize: '13px' }}>
-                                                                                                {g.pointType === 1 ? 'საშინაო' : g.pointType === 2 ? 'საკლასო' : g.pointType === 3 ? 'შემაჯამებელი' : 'დასწრება'}
-                                                                                            </td>
-                                                                                            <td style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px' }}>{g.time || '-'}</td>
-                                                                                        </tr>
-                                                                                    ))}
-                                                                                </tbody>
-                                                                            </table>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </React.Fragment>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
+                                    return (
+                                        <div
+                                            key={cardKey}
+                                            style={{
+                                                background: item.hasDiscrepancy
+                                                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(20, 20, 30, 0.6))'
+                                                    : 'rgba(255,255,255,0.03)',
+                                                border: item.hasDiscrepancy
+                                                    ? '1px solid rgba(239, 68, 68, 0.35)'
+                                                    : '1px solid rgba(255,255,255,0.08)',
+                                                borderRadius: '16px',
+                                                padding: '20px',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                    <div style={{
+                                                        width: '42px',
+                                                        height: '42px',
+                                                        borderRadius: '12px',
+                                                        background: item.hasDiscrepancy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '20px'
+                                                    }}>
+                                                        {item.hasDiscrepancy ? '⚠️' : '✅'}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span>🏫 კლასი: {item.className}</span>
+                                                            <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 500 }}>| 📅 {item.date}</span>
+                                                        </div>
+                                                        <div style={{ fontSize: '12px', color: item.hasDiscrepancy ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>
+                                                            {item.hasDiscrepancy
+                                                                ? `დაფიქსირებულია ${item.discrepantCount} საგნის აცდენების ცდომილება (${item.totalLessons} ჩატარებული საგანი)`
+                                                                : `სწრებადობა ნორმაშია (${item.totalLessons} ჩატარებული საგანი)`}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <button
+                                                        onClick={() => toggleCard(cardKey)}
+                                                        style={{
+                                                            padding: '8px 16px',
+                                                            borderRadius: '10px',
+                                                            border: 'none',
+                                                            background: isExpanded ? '#64748b' : selectedColor,
+                                                            color: 'white',
+                                                            fontWeight: 700,
+                                                            fontSize: '12px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        {isExpanded ? 'ჩაკეცვა' : '📋 დეტალების ნახვა'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteEntry(item.date, item.classId, item.className)}
+                                                        style={{
+                                                            padding: '8px 14px',
+                                                            borderRadius: '10px',
+                                                            border: 'none',
+                                                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                                            color: 'white',
+                                                            fontWeight: 700,
+                                                            fontSize: '12px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        🗑️ დღის წაშლა
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {isExpanded && (
+                                                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                                    <div className="admin-table-wrapper">
+                                                        <table className="admin-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>საგანი</th>
+                                                                    <th>მასწავლებელი</th>
+                                                                    <th style={{ textAlign: 'center' }}>სულ</th>
+                                                                    <th style={{ textAlign: 'center' }}>დაესწრო</th>
+                                                                    <th style={{ textAlign: 'center' }}>გააცდინა</th>
+                                                                    <th style={{ textAlign: 'center' }}>სწრებადობა (%)</th>
+                                                                    <th style={{ textAlign: 'center' }}>მოსწავლეები</th>
+                                                                    <th style={{ textAlign: 'center' }}>სტატუსი</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {item.evaluations.map((ev: any, evIdx: number) => {
+                                                                    const subjKey = `${cardKey}_${ev.subjectId}_${evIdx}`;
+                                                                    const isSubjExpanded = !!expandedSubjectMap[subjKey];
+
+                                                                    return (
+                                                                        <React.Fragment key={subjKey}>
+                                                                            <tr style={ev.isDiscrepancy ? { backgroundColor: 'rgba(239, 68, 68, 0.12)' } : {}}>
+                                                                                <td style={{ fontWeight: 700 }}>{ev.subjectName}</td>
+                                                                                <td>{ev.teacherName}</td>
+                                                                                <td style={{ textAlign: 'center' }}>{ev.total}</td>
+                                                                                <td style={{ textAlign: 'center', color: '#4caf50', fontWeight: 'bold' }}>{ev.presentCount}</td>
+                                                                                <td style={{ textAlign: 'center', color: '#f44336', fontWeight: 'bold' }}>{ev.absentCount}</td>
+                                                                                <td style={{ textAlign: 'center', fontWeight: '800' }}>
+                                                                                    {ev.rate.toFixed(0)}%
+                                                                                </td>
+                                                                                <td style={{ textAlign: 'center' }}>
+                                                                                    <button
+                                                                                        className="admin-table-action-btn"
+                                                                                        style={{
+                                                                                            backgroundColor: isSubjExpanded ? '#64748b' : selectedColor,
+                                                                                            padding: '5px 12px',
+                                                                                            fontSize: '11px'
+                                                                                        }}
+                                                                                        onClick={() => toggleSubject(subjKey)}
+                                                                                    >
+                                                                                        {isSubjExpanded ? 'ჩაკეცვა' : 'მოსწავლეები'}
+                                                                                    </button>
+                                                                                </td>
+                                                                                <td style={{ textAlign: 'center' }}>
+                                                                                    {ev.isDiscrepancy ? (
+                                                                                        <span className="status-badge low" style={{ textTransform: 'none', fontSize: '11px', padding: '4px 8px' }}>
+                                                                                            ⚠️ ცდომილება
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <span className="status-badge high" style={{ textTransform: 'none', fontSize: '11px', padding: '4px 8px' }}>
+                                                                                            ✅ ნორმალური
+                                                                                        </span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+
+                                                                            {isSubjExpanded && (
+                                                                                <tr>
+                                                                                    <td colSpan={8} style={{ padding: '14px 20px', background: 'rgba(0,0,0,0.2)' }}>
+                                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                                            {ev.absentStudentNames.length > 0 && (
+                                                                                                <div style={{ fontSize: '12px', color: '#fca5a5', fontWeight: 600 }}>
+                                                                                                    🚨 გაცდენილი მოსწავლეები ({ev.absentCount}): {ev.absentStudentNames.join(', ')}
+                                                                                                </div>
+                                                                                            )}
+                                                                                            <div className="admin-table-wrapper" style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px' }}>
+                                                                                                <table className="admin-table" style={{ margin: 0, fontSize: '12px' }}>
+                                                                                                    <thead>
+                                                                                                        <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+                                                                                                            <th>მოსწავლე</th>
+                                                                                                            <th style={{ textAlign: 'center' }}>სწრებადობა</th>
+                                                                                                            <th style={{ textAlign: 'center' }}>ნიშანი</th>
+                                                                                                            <th style={{ textAlign: 'center' }}>დრო</th>
+                                                                                                        </tr>
+                                                                                                    </thead>
+                                                                                                    <tbody>
+                                                                                                        {ev.gradesList.map((g: any, gIdx: number) => (
+                                                                                                            <tr key={gIdx}>
+                                                                                                                <td style={{ fontWeight: 600 }}>{g.studentName}</td>
+                                                                                                                <td style={{ textAlign: 'center' }}>
+                                                                                                                    {g.checked ? (
+                                                                                                                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ ესწრებოდა</span>
+                                                                                                                    ) : (
+                                                                                                                        <span style={{ color: '#f44336', fontWeight: 'bold' }}>✗ არ ესწრებოდა</span>
+                                                                                                                    )}
+                                                                                                                </td>
+                                                                                                                <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                                                                                                    {g.point !== undefined && g.point !== null ? g.point : '-'}
+                                                                                                                </td>
+                                                                                                                <td style={{ textAlign: 'center', opacity: 0.7 }}>
+                                                                                                                    {g.time || '-'}
+                                                                                                                </td>
+                                                                                                            </tr>
+                                                                                                        ))}
+                                                                                                    </tbody>
+                                                                                                </table>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            )}
+                                                                        </React.Fragment>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
                 )}
