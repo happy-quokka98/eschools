@@ -1,11 +1,11 @@
 :root {
-  --background: #112358;
-  --foreground: #ffffff;
-  --primary-color: #6392D2;
-  --primary-glow: rgba(99, 146, 210, 0.4);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --primary-color: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.2);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(226, 232, 240, 0.8);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -18,13 +18,17 @@ html, body {
   color: var(--foreground);
 }
 
+h1, h2, h3, h4, h5, h6, .admin-page-title, .admin-view-title, .admin-card-label {
+  text-shadow: none !important;
+}
+
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(17, 35, 88, 0.5);
+  background: rgba(28, 50, 108, 0.5);
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);

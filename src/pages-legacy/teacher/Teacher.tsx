@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { FaChalkboardTeacher, FaHistory, FaBookOpen, FaTasks, FaKey, FaRegTimesCircle, FaBullhorn, FaComments, FaCalendarAlt } from "react-icons/fa";
+import { FaChalkboardTeacher, FaHistory, FaBookOpen, FaTasks, FaKey, FaRegTimesCircle, FaBullhorn, FaComments, FaCalendarAlt, FaArrowLeft } from "react-icons/fa";
 import HomeworkModule from "../../components/HomeworkModule";
 import NoticeBoard from "../../components/NoticeBoard";
 import ChatModule from "../../components/ChatModule";
@@ -22,6 +22,9 @@ const FaChalkboardTeacherIcon = FaChalkboardTeacher as React.ComponentType<{
 const GiTeacherIcon = GiTeacher as React.ComponentType<{
   size?: number | string;
 }>;
+const ArrowLeftIcon = FaArrowLeft as React.ComponentType<{
+  size?: number | string;
+}>;
 
 const fromDate = `${new Date().getFullYear()}-01-01`;
 const toDate = new Date().toISOString().slice(0, 10);
@@ -31,45 +34,74 @@ const TutorClassDetails: React.FC<{
   allTeachers: any[];
   tutorClass: any;
   selectedColor: string;
-}> = ({ allSubjects, allTeachers, tutorClass, selectedColor }) => {
+  onSelectSubject?: (subjectId: string, subjectName: string) => void;
+  onViewAllGrades?: () => void;
+}> = ({ allSubjects, allTeachers, tutorClass, selectedColor, onSelectSubject, onViewAllGrades }) => {
   if (!tutorClass) return null;
   const subjectsList = tutorClass.subjects || [];
   return (
-    <div className="admin-list-container" style={{ padding: '24px', width: '100%' }}>
+    <div className="admin-list-container" style={{ padding: '28px', width: '100%', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 8px 25px rgba(0,0,0,0.04)' }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: '16px',
-        marginBottom: '20px',
-        paddingBottom: '20px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        marginBottom: '24px',
+        paddingBottom: '24px',
+        borderBottom: '1px solid #e2e8f0',
       }}>
-        <div style={{
-          width: '52px',
-          height: '52px',
-          borderRadius: '14px',
-          background: `linear-gradient(135deg, ${selectedColor}, ${selectedColor}99)`,
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 800,
-          fontSize: '20px',
-          flexShrink: 0,
-        }}>
-          {tutorClass.classname}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.5px', opacity: 0.5 }}>
-            სადამრიგებლო კლასი
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '16px',
+            background: '#2563eb',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 900,
+            fontSize: '22px',
+            flexShrink: 0,
+            boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)'
+          }}>
+            {tutorClass.classname}
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 800 }}>
-            {subjectsList.length} საგანი
+          <div>
+            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', fontWeight: 800 }}>
+              სადამრიგებლო კლასი
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a' }}>
+              {subjectsList.length} საგანი
+            </div>
           </div>
         </div>
+
+        {onViewAllGrades && (
+          <button
+            onClick={onViewAllGrades}
+            style={{
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '14px',
+              fontWeight: 800,
+              fontSize: '14px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            📊 კლასის სრული ჟურნალი (ყველა ნიშანი)
+          </button>
+        )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {subjectsList.map((subj: { subject_id: string; teacher_id: string }) => {
           const subjObj = allSubjects.find((s: { _id: string }) => s._id === subj.subject_id);
           const subjName = subjObj ? subjObj.name : "უცნობი საგანი";
@@ -78,23 +110,48 @@ const TutorClassDetails: React.FC<{
             ? `${teacherObj.name} ${teacherObj.surname}`
             : "უცნობი მასწავლებელი";
           return (
-            <div key={subj.subject_id} className="tutor-subject-row">
+            <div 
+              key={subj.subject_id} 
+              className="tutor-subject-row"
+              onClick={() => onSelectSubject && onSelectSubject(subj.subject_id, subjName)}
+            >
               <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'rgba(255,255,255,0.06)',
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: '#eff6ff',
+                color: '#2563eb',
+                border: '1px solid #bfdbfe',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                <FaBookOpen size={18} />
+                <FaBookOpen size={20} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '15px' }}>{subjName}</div>
-                <div style={{ fontSize: '13px', opacity: 0.6, marginTop: '2px' }}>{teacherName}</div>
+                <div style={{ fontWeight: 800, fontSize: '16px', color: '#0f172a' }}>{subjName}</div>
+                <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>{teacherName}</div>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectSubject && onSelectSubject(subj.subject_id, subjName);
+                }}
+                style={{
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  color: '#2563eb',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                📊 ნიშნების ნახვა
+              </button>
             </div>
           );
         })}
@@ -499,30 +556,27 @@ const Teacher: React.FC = () => {
           className="admin-page-bg-glow"
           style={{ background: `radial-gradient(circle at center, ${selectedColor}26 0%, transparent 70%)` }}
         />
-        <ColorPalette />
-        <div style={{ position: 'fixed', top: '15px', right: '15px', display: 'flex', gap: '10px', zIndex: 100 }}>
+        <div style={{ position: 'fixed', top: '15px', right: '15px', display: 'flex', gap: '10px', zIndex: 100, alignItems: 'center' }}>
+          <ColorPalette />
           <button
             onClick={() => setIsPassModalOpen(true)}
             style={{
               padding: '8px 16px',
               borderRadius: '12px',
-              background: 'rgba(20, 25, 45, 0.85)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: 'white',
-              fontWeight: 600,
+              background: '#1e293b',
+              border: '1px solid #334155',
+              color: '#ffffff',
+              fontWeight: 700,
               fontSize: '13px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(20, 25, 45, 0.85)'}
           >
-            <FaKey size={13} color="#fbbf24" /> პაროლის შეცვლა
+            <FaKey size={13} color="#fbbf24" /> <span style={{ color: '#ffffff' }}>პაროლის შეცვლა</span>
           </button>
           <button className="logout-btn" onClick={handleLogout} style={{ position: 'static' }}>
             გამოსვლა
@@ -543,7 +597,7 @@ const Teacher: React.FC = () => {
         {/* Teacher Password Change Modal */}
         {isPassModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-            <div style={{ background: 'rgba(20, 25, 45, 0.9)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+            <div style={{ background: 'rgba(26, 43, 85, 0.9)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: 800 }}>პაროლის შეცვლა</h3>
                 <button onClick={() => setIsPassModalOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
@@ -1384,13 +1438,31 @@ const Teacher: React.FC = () => {
     const className = classObj ? classObj.classname : "";
     const { selectedColor } = useColor();
 
+    const loginData = JSON.parse(localStorage.getItem("login") || "{}");
+    const user_ID = loginData.user_ID;
+    const teacher = allTeachers.find((t: any) => t.user_ID === user_ID);
+    let teacherSubjectId: string | undefined = undefined;
+    let teacherSubjectName: string | undefined = undefined;
+
+    if (classObj && Array.isArray(classObj.subjects) && teacher) {
+      const ts = classObj.subjects.find((s: any) => s.teacher_id === teacher._id);
+      if (ts) {
+        teacherSubjectId = ts.subject_id;
+        const subjObj = allSubjects.find((s: any) => s._id === ts.subject_id);
+        if (subjObj) teacherSubjectName = subjObj.name;
+      }
+    }
+
     return (
       <TeacherLayout>
         <DetailedGradeHistory
           classId={classId}
           className={className}
+          subjectId={teacherSubjectId}
+          subjectName={teacherSubjectName}
           selectedColor={selectedColor}
           onBackClick={() => navigate(-1)}
+          isAdmin={false}
         />
       </TeacherLayout>
     );
@@ -1436,20 +1508,40 @@ const Teacher: React.FC = () => {
         const studentsUrl = match
           ? `/api/student/grade/${match[1]}?parallel=${encodeURIComponent(match[2])}`
           : "/api/student/all";
-        const studentsRes = await fetch(studentsUrl);
-        const fetched = await studentsRes.json();
-        const classStudents = match
-          ? fetched
-          : fetched.filter(
-            (s: any) => s.classInfo && s.classInfo._id === classId,
-          );
-        setStudents(classStudents);
 
-        // Fetch grades for this class and selected subject
-        const gradesRes = await fetch(
-          `/api/grades?class_id=${classId}&subject_id=${selectedSubject}`,
-        );
+        const [studentsRes, allStudentsRes, gradesRes] = await Promise.all([
+          fetch(studentsUrl),
+          fetch("/api/student/all"),
+          fetch(`/api/grades?class_id=${classId}&subject_id=${selectedSubject}`)
+        ]);
+
+        const fetched = await studentsRes.json();
+        const allStudentsData = await allStudentsRes.json();
         const gradesData = await gradesRes.json();
+
+        let classStudents = match
+          ? (Array.isArray(fetched) ? fetched : [])
+          : (Array.isArray(fetched) ? fetched.filter((s: any) => s.classInfo && s.classInfo._id === classId) : []);
+
+        if (Array.isArray(gradesData) && Array.isArray(allStudentsData)) {
+          const existingStudentIds = new Set(classStudents.map((s: any) => s._id ? s._id.toString() : ''));
+          const allStudentsMap = new Map(allStudentsData.map((s: any) => [s._id ? s._id.toString() : '', s]));
+
+          gradesData.forEach((g: any) => {
+            if (g.student_id) {
+              const sidStr = g.student_id.toString();
+              if (!existingStudentIds.has(sidStr) && allStudentsMap.has(sidStr)) {
+                classStudents.push({
+                  ...allStudentsMap.get(sidStr),
+                  isTransferred: true
+                });
+                existingStudentIds.add(sidStr);
+              }
+            }
+          });
+        }
+
+        setStudents(classStudents);
         setGrades(Array.isArray(gradesData) ? gradesData : []);
 
         setShowResults(true);
@@ -1802,6 +1894,7 @@ const Teacher: React.FC = () => {
     const [tutorClass, setTutorClass] = useState<any | null>(null);
     const [subjects, setSubjects] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
+    const [activeSubject, setActiveSubject] = useState<{ id: string; name: string } | 'all' | null>(null);
 
     useEffect(() => {
       const fetchData = async () => {
@@ -1824,31 +1917,50 @@ const Teacher: React.FC = () => {
 
     if (loading)
       return (
-        <div style={{ color: "white", textAlign: "center", marginTop: "40px" }}>
+        <div style={{ color: "#0f172a", fontWeight: 700, textAlign: "center", marginTop: "40px" }}>
           იტვირთება...
         </div>
       );
     if (!tutorClass)
       return (
-        <div style={{ color: "white", textAlign: "center", marginTop: "40px" }}>
+        <div style={{ color: "#0f172a", fontWeight: 700, textAlign: "center", marginTop: "40px" }}>
           კლასი ვერ მოიძებნა
         </div>
       );
+
+    if (activeSubject !== null) {
+      return (
+        <TeacherLayout>
+          <DetailedGradeHistory
+            classId={tutorClass._id}
+            className={tutorClass.classname}
+            subjectId={activeSubject === 'all' ? undefined : activeSubject.id}
+            subjectName={activeSubject === 'all' ? undefined : activeSubject.name}
+            selectedColor={selectedColor}
+            onBackClick={() => setActiveSubject(null)}
+            isAdmin={false}
+          />
+        </TeacherLayout>
+      );
+    }
+
     return (
       <TeacherLayout>
-        <div className="admin-view-container" style={{ width: '100%', maxWidth: '900px', margin: '0 auto' }}>
+        <div className="admin-view-container" style={{ width: '100%', maxWidth: '950px', margin: '0 auto' }}>
           <button
             onClick={() => navigate("/teacher")}
             className="admin-back-btn"
             style={{ marginBottom: '24px' }}
           >
-            უკან დაბრუნება
+            <ArrowLeftIcon size={20} /> უკან დაბრუნება
           </button>
           <TutorClassDetails
             allSubjects={subjects}
             allTeachers={teachers}
             tutorClass={tutorClass}
             selectedColor={selectedColor}
+            onSelectSubject={(subjectId, subjectName) => setActiveSubject({ id: subjectId, name: subjectName })}
+            onViewAllGrades={() => setActiveSubject('all')}
           />
         </div>
       </TeacherLayout>

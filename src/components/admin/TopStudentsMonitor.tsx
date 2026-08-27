@@ -97,7 +97,7 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
           >
             <FaAward size={28} style={{ color: "#fbbf24" }} /> წარჩინებულთა გამოვლენა & რესურსცენტრის მონიტორინგი
           </h3>
-          <p style={{ fontSize: "14px", opacity: 0.7, margin: "6px 0 0 0" }}>
+          <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 700, margin: "6px 0 0 0" }}>
             საშუალო (X-XII კლასები), საბაზო და დაწყებითი საფეხურის წარჩინებულთა ავტომატური მონიტორინგი
           </p>
         </div>
@@ -116,8 +116,8 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
         <div
           onClick={() => { setStageFilter("საშუალო"); setMedalFilter("gold"); }}
           style={{
-            background: "linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(217, 119, 6, 0.05))",
-            border: "1px solid rgba(251, 191, 36, 0.4)",
+            background: "#fffbeb",
+            border: "1.5px solid #fde68a",
             borderRadius: "18px",
             padding: "20px",
             display: "flex",
@@ -125,7 +125,7 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
             gap: "16px",
             cursor: "pointer",
             transition: "transform 0.2s ease, boxShadow 0.2s ease",
-            boxShadow: medalFilter === "gold" ? "0 0 20px rgba(251, 191, 36, 0.3)" : "none"
+            boxShadow: medalFilter === "gold" ? "0 8px 25px rgba(245, 158, 11, 0.25)" : "0 4px 15px rgba(0, 0, 0, 0.03)"
           }}
         >
           <div
@@ -144,13 +144,13 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
             <FaMedal size={26} />
           </div>
           <div>
-            <div style={{ fontSize: "12px", color: "#fbbf24", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: "12px", color: "#b45309", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               🥇 ოქროს მედალი (X-XII)
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 900, color: "white", marginTop: "2px" }}>
-              {goldMedalists.length} <span style={{ fontSize: "14px", fontWeight: 500, opacity: 0.6 }}>მოსწავლე</span>
+            <div style={{ fontSize: "28px", fontWeight: 900, color: "#78350f", marginTop: "2px" }}>
+              {goldMedalists.length} <span style={{ fontSize: "14px", fontWeight: 600, color: "#b45309" }}>მოსწავლე</span>
             </div>
-            <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "2px" }}>ყველა საგანში ≥9.45 (დამრგვალებით 10)</div>
+            <div style={{ fontSize: "11px", color: "#b45309", fontWeight: 600, marginTop: "2px" }}>ყველა საგანში ≥9.45 (დამრგვალებით 10)</div>
           </div>
         </div>
 
@@ -158,8 +158,8 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
         <div
           onClick={() => { setStageFilter("საშუალო"); setMedalFilter("silver"); }}
           style={{
-            background: "linear-gradient(135deg, rgba(226, 232, 240, 0.12), rgba(148, 163, 184, 0.05))",
-            border: "1px solid rgba(203, 213, 225, 0.4)",
+            background: "#f8fafc",
+            border: "1.5px solid #cbd5e1",
             borderRadius: "18px",
             padding: "20px",
             display: "flex",
@@ -167,7 +167,7 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
             gap: "16px",
             cursor: "pointer",
             transition: "transform 0.2s ease, boxShadow 0.2s ease",
-            boxShadow: medalFilter === "silver" ? "0 0 20px rgba(226, 232, 240, 0.3)" : "none"
+            boxShadow: medalFilter === "silver" ? "0 8px 25px rgba(100, 116, 139, 0.25)" : "0 4px 15px rgba(0, 0, 0, 0.03)"
           }}
         >
           <div
@@ -186,13 +186,13 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
             <FaMedal size={26} />
           </div>
           <div>
-            <div style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: "12px", color: "#475569", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               🥈 ვერცხლის მედალი (X-XII)
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 900, color: "white", marginTop: "2px" }}>
-              {silverMedalists.length} <span style={{ fontSize: "14px", fontWeight: 500, opacity: 0.6 }}>მოსწავლე</span>
+            <div style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a", marginTop: "2px" }}>
+              {silverMedalists.length} <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>მოსწავლე</span>
             </div>
-            <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "2px" }}>1+ საგანში 8.45-9.44 (დამრგვალებით 9), დანარჩენი 10</div>
+            <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, marginTop: "2px" }}>1+ საგანში 8.45-9.44 (დამრგვალებით 9), დანარჩენი 10</div>
           </div>
         </div>
 
@@ -200,14 +200,15 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
         <div
           onClick={() => { setStageFilter("საშუალო"); setMedalFilter("all"); }}
           style={{
-            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(79, 70, 229, 0.05))",
-            border: "1px solid rgba(129, 140, 248, 0.4)",
+            background: "#eff6ff",
+            border: "1.5px solid #bfdbfe",
             borderRadius: "18px",
             padding: "20px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
-            cursor: "pointer"
+            cursor: "pointer",
+            boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
           }}
         >
           <div
@@ -215,24 +216,24 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
               width: "52px",
               height: "52px",
               borderRadius: "14px",
-              background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#fff",
-              boxShadow: "0 4px 12px rgba(99, 102, 241, 0.4)"
+              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)"
             }}
           >
             <FaGraduationCap size={28} />
           </div>
           <div>
-            <div style={{ fontSize: "12px", color: "#a5b4fc", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: "12px", color: "#1e40af", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               🎓 საშუალო საფეხური (X-XII)
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 900, color: "white", marginTop: "2px" }}>
-              {totalHighSchoolCount} <span style={{ fontSize: "14px", fontWeight: 500, opacity: 0.6 }}>მოსწავლე</span>
+            <div style={{ fontSize: "28px", fontWeight: 900, color: "#1e3a8a", marginTop: "2px" }}>
+              {totalHighSchoolCount} <span style={{ fontSize: "14px", fontWeight: 600, color: "#1e40af" }}>მოსწავლე</span>
             </div>
-            <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "2px" }}>სულ მე-10, 11, 12 კლასები</div>
+            <div style={{ fontSize: "11px", color: "#1e40af", fontWeight: 600, marginTop: "2px" }}>სულ მე-10, 11, 12 კლასები</div>
           </div>
         </div>
       </div>
@@ -246,10 +247,11 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
           marginBottom: "20px",
           gap: "12px",
           flexWrap: "wrap",
-          background: "rgba(255, 255, 255, 0.03)",
+          background: "#ffffff",
           padding: "16px 20px",
           borderRadius: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.08)"
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
         }}
       >
         {/* Stage Tabs */}
@@ -266,10 +268,10 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
               style={{
                 padding: "8px 16px",
                 borderRadius: "10px",
-                border: stageFilter === tab.id ? "1px solid #fbbf24" : "1px solid rgba(255,255,255,0.1)",
-                background: stageFilter === tab.id ? "rgba(251, 191, 36, 0.15)" : "#27272a",
-                color: stageFilter === tab.id ? "#fbbf24" : "white",
-                fontWeight: 700,
+                border: stageFilter === tab.id ? "1px solid #2563eb" : "1px solid #cbd5e1",
+                background: stageFilter === tab.id ? "#2563eb" : "#f8fafc",
+                color: stageFilter === tab.id ? "#ffffff" : "#475569",
+                fontWeight: 800,
                 fontSize: "13px",
                 cursor: "pointer",
                 transition: "all 0.2s"
@@ -289,9 +291,9 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
               style={{
                 padding: "9px 14px",
                 borderRadius: "10px",
-                background: "#27272a",
-                border: "1px solid rgba(251,191,36,0.4)",
-                color: "#fbbf24",
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#0f172a",
                 fontWeight: 700,
                 fontSize: "13px"
               }}
@@ -303,7 +305,7 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
           )}
 
           <div style={{ position: "relative" }}>
-            <FaSearch style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} size={13} />
+            <FaSearch style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} size={13} />
             <input
               type="text"
               placeholder="ძებნა (სახელი / კლასი)..."
@@ -312,9 +314,10 @@ export default function TopStudentsMonitor({ selectedColor }: TopStudentsMonitor
               style={{
                 padding: "9px 14px 9px 34px",
                 borderRadius: "10px",
-                background: "#27272a",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "white",
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#0f172a",
+                fontWeight: 700,
                 fontSize: "13px",
                 width: "200px"
               }}

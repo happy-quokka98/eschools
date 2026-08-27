@@ -250,16 +250,16 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
           style={{
             padding: '12px 24px',
             borderRadius: '12px',
-            border: 'none',
-            backgroundColor: activeTab === 'timetable' ? '#3b82f6' : 'rgba(255,255,255,0.08)',
-            color: 'white',
-            fontWeight: 700,
+            border: activeTab === 'timetable' ? 'none' : '1px solid #cbd5e1',
+            backgroundColor: activeTab === 'timetable' ? '#2563eb' : '#ffffff',
+            color: activeTab === 'timetable' ? '#ffffff' : '#475569',
+            fontWeight: 800,
             cursor: 'pointer',
             fontSize: '15px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: activeTab === 'timetable' ? '0 4px 14px rgba(59,130,246,0.4)' : 'none',
+            boxShadow: activeTab === 'timetable' ? '0 4px 14px rgba(37,99,235,0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
             transition: 'all 0.2s ease'
           }}
         >
@@ -271,16 +271,16 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
           style={{
             padding: '12px 24px',
             borderRadius: '12px',
-            border: 'none',
-            backgroundColor: activeTab === 'events' ? '#8b5cf6' : 'rgba(255,255,255,0.08)',
-            color: 'white',
-            fontWeight: 700,
+            border: activeTab === 'events' ? 'none' : '1px solid #cbd5e1',
+            backgroundColor: activeTab === 'events' ? '#7c3aed' : '#ffffff',
+            color: activeTab === 'events' ? '#ffffff' : '#475569',
+            fontWeight: 800,
             cursor: 'pointer',
             fontSize: '15px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: activeTab === 'events' ? '0 4px 14px rgba(139,92,246,0.4)' : 'none',
+            boxShadow: activeTab === 'events' ? '0 4px 14px rgba(124,58,237,0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
             transition: 'all 0.2s ease'
           }}
         >
@@ -291,10 +291,10 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
 
       {activeTab === 'timetable' ? (
         <>
-          <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '25px' }}>
+          <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '25px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <label className="admin-label" style={{ margin: 0 }}>კლასი: </label>
-              <select className="admin-select" style={{ maxWidth: '300px' }} value={selectedClassId || ''} onChange={e => handleClassSelect(e.target.value)}>
+              <label className="admin-label" style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>კლასი: </label>
+              <select className="admin-select" style={{ maxWidth: '300px', background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }} value={selectedClassId || ''} onChange={e => handleClassSelect(e.target.value)}>
                 <option value='' disabled>აირჩიეთ კლასი</option>
                 {sortedAndFilteredClasses.map(cls => (
                   <option key={cls._id} value={cls._id}>{cls.classname}</option>
@@ -369,7 +369,7 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                 </table>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '25px' }}>
-                <button className="admin-submit-btn" onClick={handleSave} disabled={loading} style={{ width: 'auto', padding: '12px 40px' }}>
+                <button className="admin-submit-btn" onClick={handleSave} disabled={loading} style={{ width: 'auto', padding: '12px 40px', background: '#2563eb', color: '#ffffff', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800 }}>
                   {loading ? 'ინახება...' : 'განრიგის შენახვა'}
                 </button>
               </div>
@@ -379,13 +379,13 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-zoom-in">
           {/* Year Filter Header */}
-          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <FilterIcon size={20} style={{ color: '#8b5cf6' }} />
-              <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '15px' }}>სასწავლო წელი:</span>
+              <FilterIcon size={20} style={{ color: '#7c3aed' }} />
+              <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '15px' }}>სასწავლო წელი:</span>
               <select
                 className="admin-select"
-                style={{ width: 'auto', minWidth: '180px' }}
+                style={{ width: 'auto', minWidth: '180px', background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
                 value={selectedAcademicYear}
                 onChange={e => setSelectedAcademicYear(e.target.value)}
               >
@@ -395,24 +395,25 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                 ))}
               </select>
             </div>
-            <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
               ყოველ სასწავლო წელს აქვს თავისი უნიკალური დასვენებისა და აღდგენის განრიგი.
             </div>
           </div>
 
           {/* Add / Edit Form Card */}
-          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '25px' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <AddIcon size={22} style={{ color: '#8b5cf6' }} />
+          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '25px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#0f172a', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AddIcon size={22} style={{ color: '#7c3aed' }} />
               ახალი სპეციალური დღის დამატება ({selectedAcademicYear !== 'all' ? `${selectedAcademicYear} წელი` : 'მიმდინარე წელი'})
             </h3>
 
             <form onSubmit={handleAddEvent} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', alignItems: 'end' }}>
               <div>
-                <label className="admin-label">თარიღი:</label>
+                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>თარიღი:</label>
                 <input
                   type="date"
                   className="admin-input"
+                  style={{ colorScheme: 'light', color: '#0f172a', background: '#ffffff', border: '1px solid #cbd5e1', fontWeight: 700 }}
                   value={eventDate}
                   onChange={e => setEventDate(e.target.value)}
                   required
@@ -420,9 +421,10 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
               </div>
 
               <div>
-                <label className="admin-label">დღის სტატუსი / ტიპი:</label>
+                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>დღის სტატუსი / ტიპი:</label>
                 <select
                   className="admin-select"
+                  style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
                   value={eventType}
                   onChange={e => setEventType(e.target.value as 'holiday' | 'makeup')}
                 >
@@ -433,9 +435,10 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
 
               {eventType === 'makeup' && (
                 <div>
-                  <label className="admin-label">რომელი დღის ცხრილით აღდგება:</label>
+                  <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>რომელი დღის ცხრილით აღდგება:</label>
                   <select
                     className="admin-select"
+                    style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
                     value={replacementDayOfWeek}
                     onChange={e => setReplacementDayOfWeek(Number(e.target.value))}
                   >
@@ -447,10 +450,11 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
               )}
 
               <div>
-                <label className="admin-label">დასახელება / მიზეზი:</label>
+                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>დასახელება / მიზეზი:</label>
                 <input
                   type="text"
                   className="admin-input"
+                  style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
                   placeholder="მაგ. გიორგობა, ოთხშაბათის აღდგენა"
                   value={eventTitle}
                   onChange={e => setEventTitle(e.target.value)}
@@ -473,14 +477,14 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
 
           {/* Special Events List Card */}
           <div className="admin-list-container">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#f8fafc' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#0f172a', fontWeight: 900 }}>
               დამატებული დასვენების და აღდგენის დღეები ({calendarEvents.length})
             </h3>
 
             {eventsLoading ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>იტვირთება...</div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontWeight: 600 }}>იტვირთება...</div>
             ) : calendarEvents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontStyle: 'italic' }}>
+              <div style={{ textAlign: 'center', padding: '30px', color: '#64748b', fontWeight: 600 }}>
                 სპეციალური დღეები არ არის დამატებული არჩეული წლისთვის ({selectedAcademicYear})
               </div>
             ) : (
@@ -501,27 +505,27 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                       <tr key={evt.date}>
                         <td>
                           <span style={{
-                            backgroundColor: 'rgba(255,255,255,0.08)',
-                            color: '#94a3b8',
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
                             padding: '3px 8px',
                             borderRadius: '6px',
                             fontSize: '12px',
-                            fontWeight: 600
+                            fontWeight: 700
                           }}>
                             {evt.academicYear || 'საერთო'}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 700, color: '#f8fafc' }}>{evt.date}</td>
+                        <td style={{ fontWeight: 800, color: '#0f172a' }}>{evt.date}</td>
                         <td>
                           {evt.type === 'holiday' ? (
                             <span style={{
-                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                              color: '#f87171',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              backgroundColor: '#fef2f2',
+                              color: '#dc2626',
+                              border: '1px solid #fca5a5',
                               padding: '4px 12px',
                               borderRadius: '20px',
                               fontSize: '12px',
-                              fontWeight: 700,
+                              fontWeight: 800,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px'
@@ -530,13 +534,13 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                             </span>
                           ) : (
                             <span style={{
-                              backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                              color: '#a78bfa',
-                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                              backgroundColor: '#f5f3ff',
+                              color: '#7c3aed',
+                              border: '1px solid #ddd6fe',
                               padding: '4px 12px',
                               borderRadius: '20px',
                               fontSize: '12px',
-                              fontWeight: 700,
+                              fontWeight: 800,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px'
@@ -545,23 +549,23 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                             </span>
                           )}
                         </td>
-                        <td style={{ color: '#e2e8f0' }}>{evt.title}</td>
+                        <td style={{ color: '#0f172a', fontWeight: 600 }}>{evt.title}</td>
                         <td>
                           {evt.type === 'makeup' && evt.replacementDayOfWeek !== undefined ? (
-                            <span style={{ color: '#60a5fa', fontWeight: 600 }}>
+                            <span style={{ color: '#2563eb', fontWeight: 700 }}>
                               {days[evt.replacementDayOfWeek]}
                             </span>
                           ) : (
-                            <span style={{ color: '#64748b' }}>—</span>
+                            <span style={{ color: '#94a3b8' }}>—</span>
                           )}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
                             onClick={() => handleDeleteEvent(evt.date)}
                             style={{
-                              backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                              color: '#f87171',
-                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              backgroundColor: '#fee2e2',
+                              color: '#dc2626',
+                              border: '1px solid #fca5a5',
                               borderRadius: '8px',
                               padding: '6px 12px',
                               cursor: 'pointer',
@@ -569,7 +573,7 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                               alignItems: 'center',
                               gap: '4px',
                               fontSize: '12px',
-                              fontWeight: 600
+                              fontWeight: 700
                             }}
                           >
                             <TrashIcon size={14} /> წაშლა

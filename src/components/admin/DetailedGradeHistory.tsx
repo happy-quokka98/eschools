@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useColor } from '../ColorContext';
 import { IoArrowBack } from 'react-icons/io5';
 
 const ArrowLeftIcon = IoArrowBack as React.FC<{ size?: number | string }>;
@@ -39,7 +40,22 @@ interface DetailedGradeHistoryProps {
     logoutButtonStyle?: React.CSSProperties;
     onBackClick: () => void;
     selectedYear?: string;
+    isAdmin?: boolean;
 }
+
+const isDateEditableForUser = (dateStr: string, isAdminUser?: boolean): boolean => {
+    if (isAdminUser) return true;
+    if (!dateStr) return true;
+    const gradeDate = new Date(dateStr);
+    if (isNaN(gradeDate.getTime())) return true;
+    gradeDate.setHours(0, 0, 0, 0);
+
+    const minAllowedDate = new Date();
+    minAllowedDate.setDate(minAllowedDate.getDate() - 14);
+    minAllowedDate.setHours(0, 0, 0, 0);
+
+    return gradeDate >= minAllowedDate;
+};
 
 const getAcademicYearFromDate = (dateStr: string) => {
     if (!dateStr) return null;
@@ -81,6 +97,28 @@ const normalizeAcademicYear = (yr?: string | null): string | null => {
     return yr;
 };
 
+const isDateInSemester = (dateStr: string, semester: 'all' | '1' | '2') => {
+    if (semester === 'all') return true;
+    const parts = dateStr.split(/[-/]/);
+    let month = 0;
+    if (parts.length >= 3) {
+        if (parts[0].length === 4) month = parseInt(parts[1], 10);
+        else month = parseInt(parts[1], 10);
+    } else if (parts.length === 2) {
+        month = parseInt(parts[1], 10);
+    }
+    if (!month || isNaN(month)) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) month = d.getMonth() + 1;
+    }
+    if (!month) return true;
+    if (semester === '1') {
+        return month >= 9 && month <= 12;
+    } else {
+        return month >= 1 && month <= 6;
+    }
+};
+
 const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     classId,
     className,
@@ -88,8 +126,23 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     subjectName,
     selectedColor,
     onBackClick,
-    selectedYear
+    selectedYear,
+    isAdmin = false
 }) => {
+    const { currentTheme } = useColor();
+    const isDark = currentTheme.id === 'dark';
+
+    const pageBg = isDark ? '#090d16' : '#f8fafc';
+    const cardBg = isDark ? '#111827' : '#ffffff';
+    const cardBorder = isDark ? '#1f2937' : '#e2e8f0';
+    const textColor = isDark ? '#ffffff' : '#1e293b';
+    const headingColor = isDark ? '#ffffff' : '#2e1065';
+    const accentTitleColor = isDark ? '#38bdf8' : '#4338ca';
+    const subTextColor = isDark ? '#94a3b8' : '#64748b';
+    const stickyHeaderBg = isDark ? '#1f2937' : '#ffffff';
+    const stickyColBg = isDark ? '#111827' : '#ffffff';
+    const borderGridColor = isDark ? '#374151' : '#e2e8f0';
+
     const currentAy = getCurrentAcademicYear();
     const [grades, setGrades] = useState<Grade[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -97,10 +150,11 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     const [loading, setLoading] = useState(true);
     const [selectedSubject, setSelectedSubject] = useState<string>(subjectId || 'all');
     const [academicYearFilter, setAcademicYearFilter] = useState<string>(normalizeAcademicYear(selectedYear) || currentAy);
+    const [semesterFilter, setSemesterFilter] = useState<'all' | '1' | '2'>('1');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [mobileSearchQuery, setMobileSearchQuery] = useState('');
     const [expandedMobileStudentId, setExpandedMobileStudentId] = useState<string | null>(null);
-    const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'matrix'>('cards');
+    const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'matrix'>('matrix');
 
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedCell, setSelectedCell] = useState<{
@@ -195,20 +249,44 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     ? `/api/student/grade/${match[1]}?parallel=${encodeURIComponent(match[2])}`
                     : '/api/student/all';
 
-                const [gradesRes, studentsRes, subjectsRes] = await Promise.all([
+                const [gradesRes, studentsRes, allStudentsRes, subjectsRes] = await Promise.all([
                     fetch(gradesUrl),
                     fetch(studentsUrl),
+                    fetch('/api/student/all'),
                     fetch('/api/subjects')
                 ]);
 
-                const [gradesData, studentsData, subjectsData] = await Promise.all([
+                const [gradesData, studentsData, allStudentsData, subjectsData] = await Promise.all([
                     gradesRes.json(),
                     studentsRes.json(),
+                    allStudentsRes.json(),
                     subjectsRes.json()
                 ]);
 
                 setGrades(Array.isArray(gradesData) ? gradesData : []);
-                const classStudents = match ? studentsData : studentsData.filter((s: any) => s.classInfo && s.classInfo._id === classId);
+                let classStudents = Array.isArray(studentsData)
+                    ? (match ? studentsData : studentsData.filter((s: any) => s.classInfo && s.classInfo._id === classId))
+                    : [];
+
+                if (Array.isArray(gradesData) && Array.isArray(allStudentsData)) {
+                    const existingStudentIds = new Set(classStudents.map((s: any) => s._id ? s._id.toString() : ''));
+                    const allStudentsMap = new Map(allStudentsData.map((s: any) => [s._id ? s._id.toString() : '', s]));
+
+                    gradesData.forEach((g: Grade) => {
+                        if (g.student_id) {
+                            const sidStr = g.student_id.toString();
+                            if (!existingStudentIds.has(sidStr) && allStudentsMap.has(sidStr)) {
+                                const transferredStudent = allStudentsMap.get(sidStr);
+                                classStudents.push({
+                                    ...transferredStudent,
+                                    isTransferred: true
+                                });
+                                existingStudentIds.add(sidStr);
+                            }
+                        }
+                    });
+                }
+
                 setStudents(classStudents);
                 setSubjects(subjectsData);
                 setLoading(false);
@@ -220,7 +298,13 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         fetchData();
     }, [classId, className, selectedYear, academicYearFilter]);
 
-    if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '40px' }}>იტვირთება...</div>;
+    if (loading) {
+        return (
+            <div style={{ color: '#2e1065', textAlign: 'center', marginTop: '60px', fontSize: '18px', fontWeight: 700 }}>
+                იტვირთება...
+            </div>
+        );
+    }
 
     const subjectFilteredGrades = selectedSubject === 'all' ? grades : grades.filter(g => g.subject_id === selectedSubject);
 
@@ -236,17 +320,31 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         ? subjectFilteredGrades
         : subjectFilteredGrades.filter(g => getAcademicYearFromDate(g.date) === academicYearFilter);
 
-    const allDatesArr = Array.from(new Set(filteredGrades.map(g => g.date)))
+    const rawDatesArr = Array.from(new Set(filteredGrades.map(g => g.date)))
         .sort((a, b) => sortOrder === 'desc' ? b.localeCompare(a) : a.localeCompare(b));
 
+    const allDatesArr = rawDatesArr.filter(dateStr => isDateInSemester(dateStr, semesterFilter));
+
     const studentDateGrades: { [studentId: string]: { [date: string]: Grade[] } } = {};
+    const datesPointTypes: { [date: string]: number } = {};
+
     filteredGrades.forEach(g => {
         if (!studentDateGrades[g.student_id]) studentDateGrades[g.student_id] = {};
         if (!studentDateGrades[g.student_id][g.date]) studentDateGrades[g.student_id][g.date] = [];
         studentDateGrades[g.student_id][g.date].push(g);
+
+        if (g.pointType === 3) {
+            datesPointTypes[g.date] = 3;
+        } else if (g.pointType === 1 && datesPointTypes[g.date] !== 3) {
+            datesPointTypes[g.date] = 1;
+        }
     });
 
     const handleDeleteDay = async (dateToDelete: string) => {
+        if (!isDateEditableForUser(dateToDelete, isAdmin)) {
+            alert('მასწავლებელს დღის მონაცემების წაშლა შეუძლია მხოლოდ ბოლო 2 კვირის (14 დღის) ვადით. ჩასასწორებლად მიმართეთ ადმინისტრაციას.');
+            return;
+        }
         if (!window.confirm(`დარწმუნებული ხართ, რომ გსურთ ${formatDate(dateToDelete)} (${dateToDelete}) თარიღის ყველა ნიშნის/სწრებადობის წაშლა?`)) {
             return;
         }
@@ -259,7 +357,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     class_id: classId,
                     subject_id: selectedSubject !== 'all' ? selectedSubject : undefined,
                     year: selectedYear,
-                    isAdmin: true
+                    isAdmin: Boolean(isAdmin)
                 })
             });
             if (res.ok) {
@@ -274,14 +372,17 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         }
     };
 
-    const openEditModalForGrade = (student: Student, date: string, grade: Grade) => {
+    const openEditModalForGrade = (student: Student, date: string, grade: Grade | null) => {
         setSelectedCell({ student, date, targetGrade: grade });
         const defaultSubj = selectedSubject !== 'all' ? selectedSubject : (subjects[0]?._id || '');
-        const subjId = grade.subject_id || defaultSubj;
+        const subjId = grade?.subject_id || defaultSubj;
         setEditSubjectId(subjId);
-        setEditPointType(grade.pointType || 1);
+        setEditPointType(grade?.pointType || 1);
 
-        if (grade.point === -2 || grade.checked === false) {
+        if (!grade) {
+            setIsAttending(true);
+            setEditPoint('10');
+        } else if (grade.point === -2 || grade.checked === false) {
             setIsAttending(false);
             setEditPoint('X');
         } else if (grade.point === -3) {
@@ -294,10 +395,12 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
         setEditModalOpen(true);
     };
 
-
-
     const handleSaveGrade = async () => {
         if (!selectedCell || !editSubjectId) return;
+        if (!isDateEditableForUser(selectedCell.date, isAdmin)) {
+            alert('მასწავლებელს ნიშნის შეტანა/ჩასწორება შეუძლია მხოლოდ ბოლო 2 კვირის (14 დღის) ვადით. ჩასასწორებლად მიმართეთ ადმინისტრაციას.');
+            return;
+        }
         setSavingGrade(true);
         try {
             let pointVal = 10;
@@ -326,7 +429,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                 point: pointVal,
                 pointType: editPointType,
                 checked: checkedVal,
-                isAdmin: true
+                isAdmin: Boolean(isAdmin)
             };
 
             if (selectedCell.targetGrade && selectedCell.targetGrade._id) {
@@ -362,6 +465,10 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
 
     const handleDeleteSingleGrade = async () => {
         if (!selectedCell || !selectedCell.targetGrade) return;
+        if (!isDateEditableForUser(selectedCell.date, isAdmin)) {
+            alert('მასწავლებელს ნიშნის წაშლა შეუძლია მხოლოდ ბოლო 2 კვირის (14 დღის) ვადით. ჩასასწორებლად მიმართეთ ადმინისტრაციას.');
+            return;
+        }
         const targetGrade = selectedCell.targetGrade;
         if (!window.confirm('დარწმუნებული ხართ, რომ გსურთ ამ ნიშნის წაშლა?')) return;
         setSavingGrade(true);
@@ -372,7 +479,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                 body: JSON.stringify({
                     id: targetGrade._id,
                     date: selectedCell.date,
-                    isAdmin: true
+                    isAdmin: Boolean(isAdmin)
                 })
             });
             if (res.ok) {
@@ -392,533 +499,408 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     };
 
     const formatDate = (dateStr: string) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split(/[-T/]/);
+        if (parts.length >= 3) {
+            if (parts[0].length === 4) {
+                return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+            } else {
+                return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+            }
+        }
         const date = new Date(dateStr);
-        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        if (!isNaN(date.getTime())) {
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        }
+        return dateStr;
     };
 
     const getSingleGradeDisplay = (g: Grade) => {
         if (!g) return '';
-        const isFormative = (g as any).is_formative || (g.comment && g.comment.trim() !== '') || (g as any).point === 'განმავითარებელი' || typeof (g as any).point === 'string';
-        if (isFormative) return g.comment && g.comment.trim() !== '' ? g.comment : 'განმავითარებელი';
         if (g.point === -1) return g.checked ? '✓' : '✗';
         if (g.point === -2) return 'X';
         if (g.point === -3) return 'ჩთ';
-        return g.point.toString();
-    };
-
-    const getSingleGradeStyle = (g: Grade) => {
-        if (!g) return { bg: 'transparent', border: '1px solid transparent', color: 'rgba(255,255,255,0.2)', label: '' };
-
-        const isFormative = (g as any).is_formative || (g.comment && g.comment.trim() !== '') || (g as any).point === 'განმავითარებელი' || typeof (g as any).point === 'string';
-
-        if (isFormative) {
-            return {
-                bg: 'rgba(245, 158, 11, 0.22)',
-                border: '1px solid rgba(245, 158, 11, 0.5)',
-                color: '#f59e0b',
-                label: 'განმავითარებელი'
-            };
-        }
-
-        if (g.pointType === 3) {
-            return {
-                bg: 'rgba(239, 68, 68, 0.28)',
-                border: '1px solid rgba(239, 68, 68, 0.65)',
-                color: '#fca5a5',
-                label: 'შემაჯამებელი'
-            };
-        }
-
-        if (g.pointType === 2) {
-            return {
-                bg: 'rgba(245, 158, 11, 0.25)',
-                border: '1px solid rgba(245, 158, 11, 0.55)',
-                color: '#fde047',
-                label: 'საკლასო'
-            };
-        }
-
-        if (g.point === -1) {
-            return {
-                bg: g.checked ? 'rgba(76, 175, 80, 0.18)' : 'rgba(244, 67, 54, 0.18)',
-                border: g.checked ? '1px solid rgba(76, 175, 80, 0.4)' : '1px solid rgba(244, 67, 54, 0.4)',
-                color: g.checked ? '#4caf50' : '#f44336',
-                label: g.checked ? 'დასწრება' : 'გაცდენა'
-            };
-        }
-
-        const pointColor = g.point >= 9 ? '#4caf50' : g.point >= 7 ? '#ff9800' : '#f44336';
-        return {
-            bg: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: pointColor,
-            label: ''
-        };
+        if (typeof g.point === 'number' && g.point >= 0) return g.point.toString();
+        return '✓';
     };
 
     const filteredStudents = mobileSearchQuery.trim()
         ? students.filter(s => `${s.name} ${s.surname}`.toLowerCase().includes(mobileSearchQuery.toLowerCase()))
         : students;
 
+    const currentSubjectObj = subjects.find(s => s._id === selectedSubject);
+    const displaySubjectTitle = subjectName || (selectedSubject !== 'all' ? currentSubjectObj?.name : 'ყველა საგანი');
+
     return (
-        <div className="admin-view-container animate-fade-in-down" style={{ maxWidth: '1400px', width: '100%', padding: '12px', boxSizing: 'border-box' }}>
-            <style>{`
-                @media (min-width: 769px) {
-                    .mobile-only-controls { display: none !important; }
-                    .mobile-only-cards { display: none !important; }
-                    .desktop-only-table { display: block !important; }
-                }
-                @media (max-width: 768px) {
-                    .admin-view-container { padding: 6px !important; }
-                    .admin-view-header { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-                    .admin-view-header > div { flex-direction: column !important; width: 100% !important; gap: 8px !important; }
-                    .admin-select { width: 100% !important; min-width: 0 !important; }
-                    .desktop-only-table { display: ${mobileViewMode === 'matrix' ? 'block' : 'none'} !important; }
-                    .mobile-only-cards { display: ${mobileViewMode === 'cards' ? 'block' : 'none'} !important; }
-                }
-            `}</style>
+        <div style={{
+            width: '100%',
+            minHeight: '100vh',
+            background: pageBg,
+            color: textColor,
+            padding: '24px 16px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+            {/* Main Card Container */}
+            <div style={{
+                width: '100%',
+                maxWidth: '1350px',
+                background: cardBg,
+                borderRadius: '24px',
+                boxShadow: isDark ? '0 10px 40px rgba(0, 0, 0, 0.4)' : '0 10px 40px rgba(0, 0, 0, 0.05)',
+                border: `1px solid ${cardBorder}`,
+                padding: '32px 28px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+            }}>
+                {/* Top Action Header */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                    paddingBottom: '16px',
+                    borderBottom: `1px solid ${cardBorder}`
+                }}>
+                    {/* Left: Back Button */}
+                    <button
+                        onClick={onBackClick}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: isDark ? '#1f2937' : '#ffffff',
+                            border: `1px solid ${isDark ? '#374151' : '#cbd5e1'}`,
+                            color: isDark ? '#ffffff' : '#2e1065',
+                            fontWeight: 800,
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            padding: '8px 16px',
+                            borderRadius: '12px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <ArrowLeftIcon size={20} /> უკან დაბრუნება
+                    </button>
 
-            <header className="admin-view-header" style={{ flexWrap: 'wrap', gap: '15px' }}>
-                <button className="admin-back-btn" onClick={onBackClick}>
-                    <ArrowLeftIcon size={20} /> უკან
-                </button>
-                <h2 className="admin-view-title" style={{ flex: '1 1 auto', margin: 0 }}>
-                    {className} - {subjectName || (selectedSubject !== 'all' ? subjects.find(s => s._id === selectedSubject)?.name : 'დეტალური ისტორია')}
-                </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="admin-label" style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '13px' }}>სასწავლო წელი:</span>
-                        <select className="admin-select" value={academicYearFilter} onChange={(e) => setAcademicYearFilter(e.target.value)} style={{ minWidth: '170px' }}>
-                            {detectedAcademicYears.map(yr => (
-                                <option key={yr} value={yr}>
-                                    {yr === currentAy ? `მიმდინარე (${yr})` : `${yr} სასწ. წელი`}
-                                </option>
-                            ))}
-                            <option value="all">ყველა წელი</option>
-                        </select>
-                    </div>
-                    {!subjectId && (
+                    {/* Center: Color Legend */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span className="admin-label" style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '13px' }}>საგანი:</span>
-                            <select className="admin-select" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} style={{ minWidth: '150px' }}>
-                                <option value="all">ყველა საგანი</option>
-                                {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                            </select>
-                            {selectedSubject !== 'all' && (() => {
-                                const activeSubj = subjects.find(s => s._id === selectedSubject);
-                                if (!activeSubj) return null;
-                                return (
-                                    <button
-                                        type="button"
-                                        onClick={() => openEditSubjectModal(activeSubj)}
-                                        style={{
-                                            background: 'rgba(96, 165, 250, 0.2)',
-                                            border: '1px solid rgba(96, 165, 250, 0.4)',
-                                            color: '#60a5fa',
-                                            padding: '6px 12px',
-                                            borderRadius: '8px',
-                                            fontSize: '13px',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}
-                                        title="არჩეული საგნის დასახელების ან ტიპის ჩასწორება"
-                                    >
-                                        ✏️ საგნის ჩასწორება
-                                    </button>
-                                );
-                            })()}
+                            <span style={{ width: '16px', height: '16px', background: '#fef08a', border: '1px solid #fde047', borderRadius: '4px' }}></span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: subTextColor }}>საშინაო</span>
                         </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="admin-label" style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '13px' }}>სორტირება:</span>
-                        <select className="admin-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')} style={{ minWidth: '130px' }}>
-                            <option value="asc">ძველები თავში</option>
-                            <option value="desc">ახლები თავში</option>
-                        </select>
-                    </div>
-                </div>
-            </header>
-
-            {/* Mobile View Switcher & Search Bar (Phone Only) */}
-            <div className="mobile-only-controls" style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: '12px', padding: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <button
-                        type="button"
-                        onClick={() => setMobileViewMode('cards')}
-                        style={{
-                            flex: 1,
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: mobileViewMode === 'cards' ? `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)` : 'transparent',
-                            color: 'white',
-                            fontWeight: 800,
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        📱 ბარათები (მობილური)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMobileViewMode('matrix')}
-                        style={{
-                            flex: 1,
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: mobileViewMode === 'matrix' ? `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)` : 'transparent',
-                            color: 'white',
-                            fontWeight: 800,
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        📊 ცხრილი (დესკტოპი)
-                    </button>
-                </div>
-
-                {mobileViewMode === 'cards' && (
-                    <input
-                        type="text"
-                        placeholder="🔍 მოსწავლის ძებნა..."
-                        value={mobileSearchQuery}
-                        onChange={e => setMobileSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            borderRadius: '10px',
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            color: 'white',
-                            fontSize: '14px',
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                        }}
-                    />
-                )}
-            </div>
-
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '12px',
-                padding: '8px 16px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                color: 'rgba(255, 255, 255, 0.8)',
-                flexWrap: 'wrap',
-                gap: '8px'
-            }}>
-                <span>
-                    ნაჩვენებია <strong>{academicYearFilter === 'all' ? 'ყველა სასწავლო წლის' : academicYearFilter === currentAy ? `მიმდინარე სასწავლო წლის (${currentAy})` : `${academicYearFilter} სასწ. წლის`}</strong> ნიშნები — სულ <strong>{allDatesArr.length}</strong> თარიღი
-                </span>
-                {academicYearFilter !== 'all' && detectedAcademicYears.length > 1 && (
-                    <button
-                        onClick={() => setAcademicYearFilter('all')}
-                        style={{
-                            background: 'rgba(96, 165, 250, 0.15)',
-                            border: '1px solid rgba(96, 165, 250, 0.3)',
-                            color: '#60a5fa',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        ყველა წლების გამოჩენა
-                    </button>
-                )}
-            </div>
-
-            {/* Mobile Cards UI Section (Only Phone) */}
-            <div className="mobile-only-cards" style={{ marginBottom: '20px' }}>
-                {filteredStudents.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-                        მოსწავლეები ვერ მოიძებნა
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {filteredStudents.map((student) => {
-                            const isExpanded = expandedMobileStudentId === student._id;
-                            const studentDates = allDatesArr.filter(date => (studentDateGrades[student._id]?.[date] || []).length > 0);
-                            const totalGradesCount = studentDates.reduce((acc, d) => acc + (studentDateGrades[student._id]?.[d]?.length || 0), 0);
-
-                            return (
-                                <div key={student._id} style={{
-                                    background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%)',
-                                    border: isExpanded ? `1.5px solid ${selectedColor}` : '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '16px',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                                    transition: 'all 0.2s'
-                                }}>
-                                    {/* Card Header (Tap to expand) */}
-                                    <div
-                                        onClick={() => setExpandedMobileStudentId(isExpanded ? null : student._id)}
-                                        style={{
-                                            padding: '14px 16px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            cursor: 'pointer',
-                                            background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{
-                                                width: '38px',
-                                                height: '38px',
-                                                borderRadius: '50%',
-                                                background: `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`,
-                                                color: 'white',
-                                                fontWeight: 800,
-                                                fontSize: '15px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0
-                                            }}>
-                                                {student.name ? student.name[0] : ''}{student.surname ? student.surname[0] : ''}
-                                            </div>
-                                            <div>
-                                                <div style={{ color: 'white', fontWeight: 800, fontSize: '15px' }}>
-                                                    {student.name} {student.surname}
-                                                </div>
-                                                <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '2px' }}>
-                                                    სულ {totalGradesCount} ნიშანი ({studentDates.length} თარიღი)
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div style={{ color: selectedColor, fontWeight: 800, fontSize: '18px' }}>
-                                            {isExpanded ? '▲' : '▼'}
-                                        </div>
-                                    </div>
-
-                                    {/* Card Body (Grade timeline when expanded) */}
-                                    {isExpanded && (
-                                        <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}>
-                                            {studentDates.length === 0 ? (
-                                                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', padding: '12px' }}>
-                                                    ამ მოსწავლეს ნიშნები არ აქვს
-                                                </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    {studentDates.map(date => {
-                                                        const gradeList = studentDateGrades[student._id]?.[date] || [];
-                                                        return (
-                                                            <div key={date} style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'space-between',
-                                                                background: 'rgba(255,255,255,0.03)',
-                                                                border: '1px solid rgba(255,255,255,0.06)',
-                                                                borderRadius: '10px',
-                                                                padding: '10px 12px'
-                                                            }}>
-                                                                <span style={{ color: '#60a5fa', fontWeight: 800, fontSize: '14px' }}>
-                                                                    {formatDate(date)} ({date})
-                                                                </span>
-
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                                                    {gradeList.map((g, gIdx) => {
-                                                                        const cellStyle = getSingleGradeStyle(g);
-                                                                        const displayVal = getSingleGradeDisplay(g);
-                                                                        return (
-                                                                            <button
-                                                                                key={g._id || gIdx}
-                                                                                type="button"
-                                                                                onClick={() => openEditModalForGrade(student, date, g)}
-                                                                                style={{
-                                                                                    padding: '6px 12px',
-                                                                                    borderRadius: '8px',
-                                                                                    background: cellStyle.bg,
-                                                                                    border: cellStyle.border,
-                                                                                    color: cellStyle.color,
-                                                                                    fontWeight: 800,
-                                                                                    fontSize: '14px',
-                                                                                    cursor: 'pointer',
-                                                                                    display: 'inline-flex',
-                                                                                    alignItems: 'center',
-                                                                                    gap: '4px'
-                                                                                }}
-                                                                            >
-                                                                                {displayVal}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Desktop Table UI Section (Widescreen untouched) */}
-            <div className="desktop-only-table">
-                {allDatesArr.length === 0 ? (
-                    <div className="admin-form-container" style={{ maxWidth: 'none', textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.5)' }}>
-                        ამ კლასში ნიშნები ვერ მოიძებნა
-                    </div>
-                ) : (
-                    <div className="admin-list-container animate-zoom-in" style={{ padding: 0, overflow: 'hidden', borderRadius: '12px' }}>
-                        <div className="admin-table-wrapper" style={{ width: '100%', maxHeight: '70vh', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                            <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
-                                <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <tr>
-                                        <th className="history-sticky-col" style={{ minWidth: '220px', background: 'rgba(20, 25, 40, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', left: 0, zIndex: 11, borderRight: '2px solid rgba(255,255,255,0.12)', boxShadow: '4px 0 10px rgba(0,0,0,0.3)' }}>სახელი გვარი</th>
-                                        {allDatesArr.map(date => (
-                                            <th key={date} className="history-date-col" style={{ textAlign: 'center', minWidth: '95px', verticalAlign: 'top', padding: '10px 6px' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                                    <span style={{ fontSize: '13px', fontWeight: 800 }}>{formatDate(date)}</span>
-                                                    <button
-                                                        onClick={() => handleDeleteDay(date)}
-                                                        title="დღის სრულად წაშლა"
-                                                        style={{
-                                                            background: 'rgba(239, 68, 68, 0.2)',
-                                                            border: '1px solid rgba(239, 68, 68, 0.4)',
-                                                            color: '#f87171',
-                                                            borderRadius: '6px',
-                                                            padding: '3px 8px',
-                                                            fontSize: '11px',
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '3px',
-                                                            transition: 'all 0.2s',
-                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                                        }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.4)'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-                                                    >
-                                                        წაშლა
-                                                    </button>
-                                                </div>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {students.length > 0 ? students.map((student, idx) => (
-                                        <tr key={student._id}>
-                                            <td className="history-sticky-col" style={{ fontWeight: '700', color: 'white', position: 'sticky', left: 0, background: idx % 2 === 0 ? 'rgba(11, 20, 55, 0.98)' : 'rgba(22, 30, 68, 0.98)', backdropFilter: 'blur(10px)', zIndex: 1, borderRight: '2px solid rgba(255,255,255,0.12)', boxShadow: '4px 0 10px rgba(0,0,0,0.3)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedColor, flexShrink: 0 }}></div>
-                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{student.name} {student.surname}</span>
-                                                </div>
-                                            </td>
-                                            {allDatesArr.map(date => {
-                                                const gradeList = studentDateGrades[student._id]?.[date] || [];
-                                                return (
-                                                    <td key={date} className="history-date-col" style={{ textAlign: 'center', padding: '6px 4px', minWidth: '70px' }}>
-                                                        {gradeList.length > 0 ? (
-                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                                                {gradeList.map((g, gIdx) => {
-                                                                    const cellStyle = getSingleGradeStyle(g);
-                                                                    const displayVal = getSingleGradeDisplay(g);
-                                                                    return (
-                                                                        <div
-                                                                            key={g._id || gIdx}
-                                                                            className="history-grade-pill"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                openEditModalForGrade(student, date, g);
-                                                                            }}
-                                                                            title={`დააჭირეთ ამ ნიშნის (${displayVal}) ჩასასწორებლად / წასაშლელად`}
-                                                                            style={{
-                                                                                display: 'inline-flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                padding: '4px 8px',
-                                                                                borderRadius: '6px',
-                                                                                background: cellStyle.bg,
-                                                                                border: cellStyle.border,
-                                                                                color: cellStyle.color,
-                                                                                fontWeight: 800,
-                                                                                fontSize: '13px',
-                                                                                cursor: 'pointer',
-                                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                                                                transition: 'transform 0.15s'
-                                                                            }}
-                                                                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
-                                                                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                                                        >
-                                                                            {displayVal}
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        ) : (
-                                                            <span style={{ color: 'rgba(255,255,255,0.15)' }}>-</span>
-                                                        )}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={allDatesArr.length + 1} style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>მოსწავლეები ვერ მოიძებნა</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '16px', height: '16px', background: '#84c4cb', border: '1px solid #5eead4', borderRadius: '4px' }}></span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: subTextColor }}>საკლასო</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '16px', height: '16px', background: '#f4978e', border: '1px solid #f87171', borderRadius: '4px' }}></span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: subTextColor }}>შემაჯამებელი</span>
                         </div>
                     </div>
-                )}
-            </div>
 
-            <div style={{
-                marginTop: '16px',
-                padding: '12px 18px',
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '12px',
-                flexWrap: 'wrap',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '12px',
-            }}>
-                {[
-                    { label: 'შემაჯამებელი', bg: 'rgba(239, 68, 68, 0.28)', border: '1px solid rgba(239, 68, 68, 0.6)', color: '#fca5a5' },
-                    { label: 'საკლასო', bg: 'rgba(245, 158, 11, 0.25)', border: '1px solid rgba(245, 158, 11, 0.5)', color: '#fde047' },
-                    { label: 'საშინაო', bg: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.45)', color: '#93c5fd' },
-                    { label: 'დასწრება (✓)', bg: 'rgba(76, 175, 80, 0.15)', border: '1px solid rgba(76, 175, 80, 0.35)', color: '#4caf50' },
-                    { label: 'გაცდენა (✗)', bg: 'rgba(244, 67, 54, 0.15)', border: '1px solid rgba(244, 67, 54, 0.35)', color: '#f44336' },
-                ].map((item) => (
-                    <div key={item.label} style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '5px 12px',
-                        borderRadius: '6px',
-                        background: item.bg,
-                        border: item.border,
-                    }}>
-                        <span style={{ fontSize: '12px', color: item.color, fontWeight: 700 }}>
-                            {item.label}
+                    {/* Right: Subject Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '18px', fontWeight: 800, color: headingColor, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            საგანი: <span style={{ color: accentTitleColor }}>{displaySubjectTitle}</span>
                         </span>
                     </div>
-                ))}
+                </div>
+
+                {/* Academic Year & Semester Selector Tabs */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    {/* Academic Year Pills */}
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {detectedAcademicYears.map(yr => {
+                            const isActive = academicYearFilter === yr;
+                            return (
+                                <button
+                                    key={yr}
+                                    type="button"
+                                    onClick={() => setAcademicYearFilter(yr)}
+                                    style={{
+                                        background: isActive ? '#2e1065' : '#ffffff',
+                                        color: isActive ? '#ffffff' : '#2e1065',
+                                        border: isActive ? '1.5px solid #2e1065' : '1.5px solid #cbd5e1',
+                                        borderRadius: '12px',
+                                        padding: '8px 24px',
+                                        fontWeight: 800,
+                                        fontSize: '14px',
+                                        cursor: 'pointer',
+                                        boxShadow: isActive ? '0 4px 12px rgba(46, 16, 101, 0.25)' : 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {yr}
+                                </button>
+                            );
+                        })}
+                        <button
+                            type="button"
+                            onClick={() => setAcademicYearFilter('all')}
+                            style={{
+                                background: academicYearFilter === 'all' ? '#2e1065' : '#ffffff',
+                                color: academicYearFilter === 'all' ? '#ffffff' : '#2e1065',
+                                border: academicYearFilter === 'all' ? '1.5px solid #2e1065' : '1.5px solid #cbd5e1',
+                                borderRadius: '12px',
+                                padding: '8px 20px',
+                                fontWeight: 800,
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            ყველა წელი
+                        </button>
+                    </div>
+
+                    {/* Semester Pills */}
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <button
+                            type="button"
+                            onClick={() => setSemesterFilter('1')}
+                            style={{
+                                background: semesterFilter === '1' ? '#2e1065' : '#ffffff',
+                                color: semesterFilter === '1' ? '#ffffff' : '#2e1065',
+                                border: semesterFilter === '1' ? '1.5px solid #2e1065' : '1.5px solid #cbd5e1',
+                                borderRadius: '10px',
+                                padding: '6px 20px',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            პირველი სემესტრი
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSemesterFilter('2')}
+                            style={{
+                                background: semesterFilter === '2' ? '#2e1065' : '#ffffff',
+                                color: semesterFilter === '2' ? '#ffffff' : '#2e1065',
+                                border: semesterFilter === '2' ? '1.5px solid #2e1065' : '1.5px solid #cbd5e1',
+                                borderRadius: '10px',
+                                padding: '6px 20px',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            მეორე სემესტრი
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSemesterFilter('all')}
+                            style={{
+                                background: semesterFilter === 'all' ? '#2e1065' : '#ffffff',
+                                color: semesterFilter === 'all' ? '#ffffff' : '#2e1065',
+                                border: semesterFilter === 'all' ? '1.5px solid #2e1065' : '1.5px solid #cbd5e1',
+                                borderRadius: '10px',
+                                padding: '6px 16px',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            ყველა
+                        </button>
+                    </div>
+                </div>
+
+                {/* Table Matrix Grid */}
+                <div style={{
+                    width: '100%',
+                    overflowX: 'auto',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.03)'
+                }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: '800px' }}>
+                        <thead>
+                            <tr style={{ background: '#ffffff' }}>
+                                <th style={{
+                                    minWidth: '220px',
+                                    position: 'sticky',
+                                    left: 0,
+                                    zIndex: 10,
+                                    background: '#ffffff',
+                                    color: '#64748b',
+                                    fontWeight: 800,
+                                    fontSize: '13px',
+                                    padding: '14px 18px',
+                                    textAlign: 'left',
+                                    borderRight: '2px solid #e2e8f0',
+                                    borderBottom: '2px solid #cbd5e1',
+                                    textTransform: 'uppercase'
+                                }}>
+                                    სახელი გვარი
+                                </th>
+                                {allDatesArr.map(date => (
+                                    <th key={date} style={{
+                                        textAlign: 'center',
+                                        minWidth: '65px',
+                                        padding: '12px 6px',
+                                        color: '#64748b',
+                                        fontWeight: 700,
+                                        fontSize: '13px',
+                                        borderRight: '1px solid #f1f5f9',
+                                        borderBottom: '2px solid #cbd5e1',
+                                        background: '#ffffff'
+                                    }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                            <span>{formatDate(date)}</span>
+                                            <button
+                                                onClick={() => handleDeleteDay(date)}
+                                                title="დღის წაშლა"
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: '#ef4444',
+                                                    fontSize: '10px',
+                                                    cursor: 'pointer',
+                                                    opacity: 0.5,
+                                                    padding: 0
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                                onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {students.length > 0 ? students.map((student, idx) => (
+                                <tr key={student._id}>
+                                    {/* Student Sticky Name Column */}
+                                    <td style={{
+                                        fontWeight: 700,
+                                        color: '#0f172a',
+                                        position: 'sticky',
+                                        left: 0,
+                                        zIndex: 5,
+                                        background: '#ffffff',
+                                        borderRight: '2px solid #e2e8f0',
+                                        borderBottom: '1px solid #e2e8f0',
+                                        padding: '14px 18px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0f172a" style={{ flexShrink: 0 }}>
+                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                            </svg>
+                                            <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>
+                                                {student.name} {student.surname}
+                                                {(student as any).isTransferred && (
+                                                    <span style={{
+                                                        marginLeft: '6px',
+                                                        fontSize: '11px',
+                                                        background: '#fee2e2',
+                                                        color: '#dc2626',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '6px',
+                                                        fontWeight: 700
+                                                    }}>
+                                                        (გადასული)
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    {/* Date Cells */}
+                                    {allDatesArr.map(date => {
+                                        const gradeList = studentDateGrades[student._id]?.[date] || [];
+                                        const primaryGrade = gradeList[0] || null;
+                                        const datePointType = datesPointTypes[date] || 2;
+                                        const effectivePointType = primaryGrade ? (primaryGrade.pointType || datePointType) : datePointType;
+
+                                        let cellBgColor = '#84c4cb'; // Default Mint / Classwork
+                                        if (effectivePointType === 3) {
+                                            cellBgColor = '#f4978e'; // Summative Red / Salmon
+                                        } else if (effectivePointType === 1) {
+                                            cellBgColor = '#fef08a'; // Homework Yellow
+                                        }
+
+                                        return (
+                                            <td
+                                                key={date}
+                                                onClick={() => openEditModalForGrade(student, date, primaryGrade)}
+                                                title={primaryGrade ? `დააჭირეთ ჩასასწორებლად (${formatDate(date)})` : `დააჭირეთ ნიშნის დასამატებლად (${formatDate(date)})`}
+                                                style={{
+                                                    textAlign: 'center',
+                                                    padding: '10px 4px',
+                                                    background: cellBgColor,
+                                                    border: '1.5px solid #ffffff',
+                                                    cursor: 'pointer',
+                                                    verticalAlign: 'middle',
+                                                    transition: 'filter 0.15s, transform 0.15s'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
+                                                onMouseLeave={e => e.currentTarget.style.filter = 'brightness(1)'}
+                                            >
+                                                {gradeList.length > 0 ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', flexWrap: 'wrap', maxWidth: '140px', margin: '0 auto' }}>
+                                                        {gradeList.map((g, gIdx) => {
+                                                            const isAbsent = g.point === -2 || g.checked === false;
+                                                            const displayVal = getSingleGradeDisplay(g);
+                                                            const isNumber = typeof g.point === 'number' && g.point >= 0;
+                                                            const hasComment = Boolean(g.comment && g.comment.trim() !== '');
+
+                                                            let markColor = '#1d4ed8'; // Navy Blue for checkmark
+                                                            if (isAbsent) markColor = '#dc2626'; // Red for X
+                                                            else if (isNumber) markColor = '#0f172a'; // Black/Navy for numerical score
+
+                                                            const tooltipText = `${g.time ? `[${g.time}] ` : ''}${isAbsent ? 'გაცდენა (X)' : isNumber ? `ქულა: ${g.point}` : 'დასწრება (✓)'}${hasComment ? ` — კომენტარი: "${g.comment}"` : ''}`;
+
+                                                            return (
+                                                                <span
+                                                                    key={g._id || gIdx}
+                                                                    title={tooltipText}
+                                                                    style={{
+                                                                        fontSize: '17px',
+                                                                        fontWeight: 900,
+                                                                        color: markColor,
+                                                                        lineHeight: 1,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '1px'
+                                                                    }}
+                                                                >
+                                                                    {isAbsent ? 'X' : displayVal}
+                                                                    {hasComment && !isAbsent && <span style={{ fontSize: '10px', marginLeft: '1px' }}>💬</span>}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : null}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={allDatesArr.length + 1} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                        მოსწავლეები ვერ მოიძებნა
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Toast Notification Banner */}
+            {/* Toast Banner */}
             {toast && (
                 <div style={{
                     position: 'fixed',
@@ -926,11 +908,11 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 10000,
-                    background: toast.type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    background: toast.type === 'success' ? '#10b981' : '#ef4444',
                     color: 'white',
                     padding: '12px 24px',
                     borderRadius: '999px',
-                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
                     fontWeight: 700,
                     fontSize: '15px',
                     display: 'flex',
@@ -947,6 +929,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                 const isProjectSubject = activeSubject
                     ? ((activeSubject as any).is_project || (activeSubject as any).is_pass_fail || (activeSubject as any).type === 'project' || /პროექტი|ჩათვლა|პროექტული/i.test(activeSubject.name))
                     : false;
+                const canUserEditDate = isDateEditableForUser(selectedCell.date, isAdmin);
 
                 return typeof window !== 'undefined' ? createPortal(
                     <div style={{
@@ -957,8 +940,8 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                         bottom: 0,
                         width: '100vw',
                         height: '100vh',
-                        background: 'rgba(5, 10, 25, 0.85)',
-                        backdropFilter: 'blur(10px)',
+                        background: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(8px)',
                         zIndex: 999999,
                         display: 'flex',
                         alignItems: 'center',
@@ -966,27 +949,27 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                         padding: '20px'
                     }}>
                         <div style={{
-                            background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            borderRadius: '20px',
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '24px',
                             padding: '28px',
                             width: '100%',
                             maxWidth: '480px',
-                            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
-                            color: 'white',
+                            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.2)',
+                            color: '#0f172a',
                             margin: 'auto'
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>
+                                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#2e1065' }}>
                                     {selectedCell.targetGrade ? 'ნიშნის ჩასწორება' : 'ნიშნის დამატება'}
                                 </h3>
                                 <button
                                     type="button"
                                     onClick={() => setEditModalOpen(false)}
                                     style={{
-                                        background: 'rgba(255,255,255,0.08)',
+                                        background: '#f1f5f9',
                                         border: 'none',
-                                        color: 'rgba(255,255,255,0.6)',
+                                        color: '#64748b',
                                         borderRadius: '50%',
                                         width: '32px',
                                         height: '32px',
@@ -1001,21 +984,37 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                     ✕
                                 </button>
                             </div>
-                            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#94a3b8' }}>
+                            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
                                 {selectedCell.student.name} {selectedCell.student.surname} — {formatDate(selectedCell.date)} ({selectedCell.date})
                             </p>
 
+                            {!canUserEditDate && (
+                                <div style={{
+                                    background: '#fef2f2',
+                                    border: '1px solid #fca5a5',
+                                    color: '#991b1b',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    fontSize: '13px',
+                                    fontWeight: 700,
+                                    marginBottom: '18px',
+                                    lineHeight: 1.4
+                                }}>
+                                    ⚠️ მასწავლებელს ნიშნის შეტანა/ჩასწორება შეუძლია მხოლოდ ბოლო 2 კვირის (14 დღის) ვადით. 2 კვირაზე ძველი ნიშნების ჩასასწორებლად მიმართეთ ადმინისტრაციას.
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         საგანი:
                                     </label>
                                     <div style={{
                                         padding: '10px 14px',
                                         borderRadius: '10px',
-                                        background: 'rgba(96, 165, 250, 0.12)',
-                                        border: '1px solid rgba(96, 165, 250, 0.3)',
-                                        color: '#60a5fa',
+                                        background: '#e0e7ff',
+                                        border: '1px solid #c7d2fe',
+                                        color: '#4338ca',
                                         fontWeight: 800,
                                         fontSize: '15px',
                                         display: 'flex',
@@ -1024,7 +1023,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                     }}>
                                         <span>{activeSubject ? activeSubject.name : (subjectName || 'საგანი')}</span>
                                         {isProjectSubject && (
-                                            <span style={{ fontSize: '11px', background: 'rgba(192, 132, 252, 0.2)', border: '1px solid rgba(192, 132, 252, 0.4)', color: '#c084fc', padding: '2px 8px', borderRadius: '12px' }}>
+                                            <span style={{ fontSize: '11px', background: '#f3e8ff', border: '1px solid #d8b4fe', color: '#9333ea', padding: '2px 8px', borderRadius: '12px' }}>
                                                 პროექტული (ჩათვლა)
                                             </span>
                                         )}
@@ -1032,12 +1031,13 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         სწრებადობა და სტატუსი:
                                     </label>
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                         <button
                                             type="button"
+                                            disabled={!canUserEditDate}
                                             onClick={() => {
                                                 setIsAttending(true);
                                                 if (editPoint === 'X') setEditPoint(isProjectSubject ? 'ჩთ' : '10');
@@ -1046,12 +1046,13 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                                 flex: 1,
                                                 padding: '10px',
                                                 borderRadius: '10px',
-                                                border: isAttending ? '2px solid #4caf50' : '1px solid rgba(255,255,255,0.12)',
-                                                background: isAttending ? 'rgba(76, 175, 80, 0.25)' : 'rgba(255,255,255,0.04)',
-                                                color: isAttending ? '#4caf50' : 'white',
+                                                border: isAttending ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                                                background: isAttending ? '#dcfce7' : '#f8fafc',
+                                                color: isAttending ? '#15803d' : '#334155',
                                                 fontWeight: 800,
                                                 fontSize: '14px',
-                                                cursor: 'pointer',
+                                                cursor: canUserEditDate ? 'pointer' : 'not-allowed',
+                                                opacity: canUserEditDate ? 1 : 0.6,
                                                 transition: 'all 0.15s'
                                             }}
                                         >
@@ -1059,6 +1060,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                         </button>
                                         <button
                                             type="button"
+                                            disabled={!canUserEditDate}
                                             onClick={() => {
                                                 setIsAttending(false);
                                                 setEditPoint('X');
@@ -1067,12 +1069,13 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                                 flex: 1,
                                                 padding: '10px',
                                                 borderRadius: '10px',
-                                                border: !isAttending ? '2px solid #ef4444' : '1px solid rgba(255,255,255,0.12)',
-                                                background: !isAttending ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
-                                                color: !isAttending ? '#ef4444' : 'white',
+                                                border: !isAttending ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                                                background: !isAttending ? '#fee2e2' : '#f8fafc',
+                                                color: !isAttending ? '#b91c1c' : '#334155',
                                                 fontWeight: 800,
                                                 fontSize: '14px',
-                                                cursor: 'pointer',
+                                                cursor: canUserEditDate ? 'pointer' : 'not-allowed',
+                                                opacity: canUserEditDate ? 1 : 0.6,
                                                 transition: 'all 0.15s'
                                             }}
                                         >
@@ -1082,46 +1085,48 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         {isProjectSubject ? 'შეფასება (პროექტული):' : 'ქულები (0 – 10):'}
                                     </label>
 
                                     {!isAttending ? (
-                                        <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', textAlign: 'center', fontWeight: 600 }}>
+                                        <div style={{ padding: '12px', borderRadius: '10px', background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: '13px', textAlign: 'center', fontWeight: 600 }}>
                                             ⚠️ მოსწავლე არ ესწრება (გაცდენა). ნიშანი ვერ დაეწერება.
                                         </div>
                                     ) : isProjectSubject ? (
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <button
                                                 type="button"
+                                                disabled={!canUserEditDate}
                                                 onClick={() => setEditPoint('ჩთ')}
                                                 style={{
                                                     flex: 1,
                                                     padding: '12px',
                                                     borderRadius: '10px',
-                                                    border: editPoint === 'ჩთ' ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.12)',
-                                                    background: editPoint === 'ჩთ' ? 'rgba(192, 132, 252, 0.3)' : 'rgba(255,255,255,0.04)',
-                                                    color: editPoint === 'ჩთ' ? '#c084fc' : 'white',
+                                                    border: editPoint === 'ჩთ' ? '2px solid #9333ea' : '1px solid #cbd5e1',
+                                                    background: editPoint === 'ჩთ' ? '#f3e8ff' : '#f8fafc',
+                                                    color: editPoint === 'ჩთ' ? '#7e22ce' : '#334155',
                                                     fontWeight: 800,
                                                     fontSize: '15px',
-                                                    cursor: 'pointer'
+                                                    cursor: canUserEditDate ? 'pointer' : 'not-allowed'
                                                 }}
                                             >
                                                 ჩთ (ჩათვლა)
                                             </button>
                                             <button
                                                 type="button"
+                                                disabled={!canUserEditDate}
                                                 onClick={() => setEditPoint('არა ჩთ')}
                                                 style={{
                                                     flex: 1,
                                                     padding: '12px',
                                                     borderRadius: '10px',
-                                                    border: editPoint === 'არა ჩთ' ? '2px solid #ef4444' : '1px solid rgba(255,255,255,0.12)',
-                                                    background: editPoint === 'არა ჩთ' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.04)',
-                                                    color: editPoint === 'არა ჩთ' ? '#f87171' : 'white',
+                                                    border: editPoint === 'არა ჩთ' ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                                                    background: editPoint === 'არა ჩთ' ? '#fee2e2' : '#f8fafc',
+                                                    color: editPoint === 'არა ჩთ' ? '#b91c1c' : '#334155',
                                                     fontWeight: 800,
                                                     fontSize: '15px',
-                                                    cursor: 'pointer'
+                                                    cursor: canUserEditDate ? 'pointer' : 'not-allowed'
                                                 }}
                                             >
                                                 არა ჩთ (არ ჩაეთვალა)
@@ -1135,16 +1140,18 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                                     <button
                                                         key={pt}
                                                         type="button"
+                                                        disabled={!canUserEditDate}
                                                         onClick={() => setEditPoint(pt)}
                                                         style={{
                                                             padding: '12px 0',
                                                             borderRadius: '10px',
-                                                            border: isSelected ? '2px solid #60a5fa' : '1px solid rgba(255,255,255,0.12)',
-                                                            background: isSelected ? 'rgba(96, 165, 250, 0.3)' : 'rgba(255,255,255,0.04)',
-                                                            color: isSelected ? '#60a5fa' : 'white',
+                                                            border: isSelected ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                                                            background: isSelected ? '#dbeafe' : '#f8fafc',
+                                                            color: isSelected ? '#1d4ed8' : '#334155',
                                                             fontWeight: 800,
                                                             fontSize: '16px',
-                                                            cursor: 'pointer',
+                                                            cursor: canUserEditDate ? 'pointer' : 'not-allowed',
+                                                            opacity: canUserEditDate ? 1 : 0.6,
                                                             transition: 'all 0.12s'
                                                         }}
                                                     >
@@ -1154,17 +1161,19 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                             })}
                                             <button
                                                 type="button"
+                                                disabled={!canUserEditDate}
                                                 onClick={() => setEditPoint('0')}
                                                 style={{
                                                     gridColumn: 'span 5',
                                                     padding: '10px 0',
                                                     borderRadius: '10px',
-                                                    border: editPoint === '0' ? '2px solid #f87171' : '1px solid rgba(255,255,255,0.12)',
-                                                    background: editPoint === '0' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
-                                                    color: editPoint === '0' ? '#f87171' : 'white',
+                                                    border: editPoint === '0' ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                                                    background: editPoint === '0' ? '#fee2e2' : '#f8fafc',
+                                                    color: editPoint === '0' ? '#b91c1c' : '#334155',
                                                     fontWeight: 800,
                                                     fontSize: '16px',
-                                                    cursor: 'pointer',
+                                                    cursor: canUserEditDate ? 'pointer' : 'not-allowed',
+                                                    opacity: canUserEditDate ? 1 : 0.6,
                                                     transition: 'all 0.12s'
                                                 }}
                                             >
@@ -1175,14 +1184,24 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         ნიშნის ტიპი:
                                     </label>
                                     <select
                                         value={editPointType}
+                                        disabled={!canUserEditDate}
                                         onChange={(e) => setEditPointType(Number(e.target.value))}
-                                        className="admin-select"
-                                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px 14px',
+                                            borderRadius: '10px',
+                                            border: '1px solid #cbd5e1',
+                                            background: '#ffffff',
+                                            color: '#0f172a',
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            opacity: canUserEditDate ? 1 : 0.6
+                                        }}
                                     >
                                         <option value={1}>🔵 საშინაო (ლურჯი)</option>
                                         <option value={2}>🟡 საკლასო (ყვითელი)</option>
@@ -1194,17 +1213,17 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                     <button
                                         type="button"
                                         onClick={handleSaveGrade}
-                                        disabled={savingGrade}
+                                        disabled={savingGrade || !canUserEditDate}
                                         style={{
                                             flex: 1,
                                             padding: '12px 18px',
                                             borderRadius: '10px',
-                                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                            background: (!canUserEditDate || savingGrade) ? '#cbd5e1' : '#10b981',
                                             border: 'none',
                                             color: 'white',
                                             fontWeight: 700,
                                             fontSize: '14px',
-                                            cursor: savingGrade ? 'wait' : 'pointer'
+                                            cursor: (!canUserEditDate || savingGrade) ? 'not-allowed' : 'pointer'
                                         }}
                                     >
                                         {savingGrade ? 'ინახება...' : 'შენახვა'}
@@ -1213,16 +1232,16 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                         <button
                                             type="button"
                                             onClick={handleDeleteSingleGrade}
-                                            disabled={savingGrade}
+                                            disabled={savingGrade || !canUserEditDate}
                                             style={{
                                                 padding: '12px 18px',
                                                 borderRadius: '10px',
-                                                background: 'rgba(239, 68, 68, 0.18)',
-                                                border: '1px solid rgba(239, 68, 68, 0.5)',
-                                                color: '#f87171',
+                                                background: (!canUserEditDate || savingGrade) ? '#f1f5f9' : '#fee2e2',
+                                                border: (!canUserEditDate || savingGrade) ? '1px solid #cbd5e1' : '1px solid #fca5a5',
+                                                color: (!canUserEditDate || savingGrade) ? '#94a3b8' : '#b91c1c',
                                                 fontWeight: 700,
                                                 fontSize: '14px',
-                                                cursor: savingGrade ? 'wait' : 'pointer'
+                                                cursor: (!canUserEditDate || savingGrade) ? 'not-allowed' : 'pointer'
                                             }}
                                         >
                                             წაშლა
@@ -1235,9 +1254,9 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                         style={{
                                             padding: '12px 18px',
                                             borderRadius: '10px',
-                                            background: 'rgba(255,255,255,0.08)',
-                                            border: '1px solid rgba(255,255,255,0.15)',
-                                            color: 'white',
+                                            background: '#f1f5f9',
+                                            border: '1px solid #cbd5e1',
+                                            color: '#475569',
                                             fontWeight: 600,
                                             fontSize: '14px',
                                             cursor: 'pointer'
@@ -1253,7 +1272,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                 ) : null;
             })()}
 
-            {/* Modal for editing subject details (name, is_project) */}
+            {/* Modal for editing subject details */}
             {subjectModalOpen && editSubjectTarget && typeof window !== 'undefined' && createPortal(
                 <div style={{
                     position: 'fixed',
@@ -1263,8 +1282,8 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     bottom: 0,
                     width: '100vw',
                     height: '100vh',
-                    background: 'rgba(5, 10, 25, 0.85)',
-                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(8px)',
                     zIndex: 999999,
                     display: 'flex',
                     alignItems: 'center',
@@ -1272,27 +1291,27 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     padding: '20px'
                 }}>
                     <div style={{
-                        background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
-                        border: '1px solid rgba(96, 165, 250, 0.3)',
-                        borderRadius: '20px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '24px',
                         padding: '28px',
                         width: '100%',
                         maxWidth: '440px',
-                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
-                        color: 'white',
+                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.2)',
+                        color: '#0f172a',
                         margin: 'auto'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#60a5fa' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#2e1065' }}>
                                 ⚙️ საგნის ჩასწორება
                             </h3>
                             <button
                                 type="button"
                                 onClick={() => setSubjectModalOpen(false)}
                                 style={{
-                                    background: 'rgba(255,255,255,0.08)',
+                                    background: '#f1f5f9',
                                     border: 'none',
-                                    color: 'rgba(255,255,255,0.6)',
+                                    color: '#64748b',
                                     borderRadius: '50%',
                                     width: '30px',
                                     height: '30px',
@@ -1310,7 +1329,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     საგნის დასახელება:
                                 </label>
                                 <input
@@ -1318,13 +1337,21 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                     value={editSubjectName}
                                     onChange={(e) => setEditSubjectName(e.target.value)}
                                     placeholder="შეიყვანეთ საგნის სახელი"
-                                    className="admin-input"
-                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', fontWeight: 600 }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        background: '#f8fafc',
+                                        border: '1px solid #cbd5e1',
+                                        color: '#0f172a',
+                                        fontWeight: 600,
+                                        boxSizing: 'border-box'
+                                    }}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     საგნის ტიპი (შეფასების სისტემა):
                                 </label>
                                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -1335,9 +1362,9 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                             flex: 1,
                                             padding: '10px 8px',
                                             borderRadius: '10px',
-                                            border: !editSubjectIsProject ? '2px solid #60a5fa' : '1px solid rgba(255,255,255,0.12)',
-                                            background: !editSubjectIsProject ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255,255,255,0.04)',
-                                            color: !editSubjectIsProject ? '#60a5fa' : 'white',
+                                            border: !editSubjectIsProject ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                                            background: !editSubjectIsProject ? '#dbeafe' : '#f8fafc',
+                                            color: !editSubjectIsProject ? '#1d4ed8' : '#334155',
                                             fontWeight: 800,
                                             fontSize: '13px',
                                             cursor: 'pointer'
@@ -1352,9 +1379,9 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                             flex: 1,
                                             padding: '10px 8px',
                                             borderRadius: '10px',
-                                            border: editSubjectIsProject ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.12)',
-                                            background: editSubjectIsProject ? 'rgba(192, 132, 252, 0.25)' : 'rgba(255,255,255,0.04)',
-                                            color: editSubjectIsProject ? '#c084fc' : 'white',
+                                            border: editSubjectIsProject ? '2px solid #9333ea' : '1px solid #cbd5e1',
+                                            background: editSubjectIsProject ? '#f3e8ff' : '#f8fafc',
+                                            color: editSubjectIsProject ? '#7e22ce' : '#334155',
                                             fontWeight: 800,
                                             fontSize: '13px',
                                             cursor: 'pointer'
@@ -1374,7 +1401,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                         flex: 1,
                                         padding: '12px 18px',
                                         borderRadius: '10px',
-                                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                        background: '#2563eb',
                                         border: 'none',
                                         color: 'white',
                                         fontWeight: 700,
@@ -1392,9 +1419,9 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                     style={{
                                         padding: '12px 18px',
                                         borderRadius: '10px',
-                                        background: 'rgba(255,255,255,0.08)',
-                                        border: '1px solid rgba(255,255,255,0.15)',
-                                        color: 'white',
+                                        background: '#f1f5f9',
+                                        border: '1px solid #cbd5e1',
+                                        color: '#475569',
                                         fontWeight: 600,
                                         fontSize: '14px',
                                         cursor: 'pointer'

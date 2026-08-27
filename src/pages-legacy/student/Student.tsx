@@ -201,7 +201,7 @@ const Student: React.FC = () => {
                 <div style={{
                     maxWidth: '1200px',
                     margin: '0 auto 24px auto',
-                    background: 'rgba(20, 25, 45, 0.75)',
+                    background: 'rgba(26, 43, 85, 0.75)',
                     backdropFilter: 'blur(30px)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '20px',

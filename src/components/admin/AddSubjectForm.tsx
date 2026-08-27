@@ -136,14 +136,14 @@ const AddSubjectForm: React.FC<AddSubjectFormProps> = ({
               }}></span>
             </span>
           </label>
-          <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>პროექტული (ჩათვლებიანი) საგანი</span>
+          <span style={{ color: '#0f172a', fontSize: '14px', fontWeight: 700 }}>პროექტული (ჩათვლებიანი) საგანი</span>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
           <button type="button" onClick={onCancel} className="admin-cancel-btn" style={{ flex: 1 }}>
             გაუქმება
           </button>
-          <button type="submit" className="admin-submit-btn" style={{ background: selectedColor, margin: 0, flex: 1 }}>
+          <button type="submit" className="admin-submit-btn" style={{ background: '#2563eb', color: '#ffffff', margin: 0, flex: 1, fontWeight: 800 }}>
             დამატება
           </button>
         </div>
@@ -151,25 +151,25 @@ const AddSubjectForm: React.FC<AddSubjectFormProps> = ({
 
       {/* List of existing subjects with edit buttons */}
       {subjectsList.length > 0 && (
-        <div className="admin-form-container" style={{ width: '100%' }}>
-          <h3 className="admin-form-title" style={{ fontSize: '18px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px', marginBottom: '20px' }}>
+        <div className="admin-form-container" style={{ width: '100%', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+          <h3 className="admin-form-title" style={{ fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px', color: '#0f172a', fontWeight: 900 }}>
             არსებული საგნების სია და რედაქტირება
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {subjectsList.map((subj) => {
               const isProj = Boolean(subj.is_project || subj.is_pass_fail || subj.type === 'project' || /პროექტი|ჩათვლა|პროექტული/i.test(subj.name || ''));
               return (
-                <div key={subj._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div key={subj._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ color: 'white', fontWeight: 700, fontSize: '15px' }}>
+                    <span style={{ color: '#0f172a', fontWeight: 800, fontSize: '16px' }}>
                       {subj.name || subj.subject_name}
                     </span>
                     {isProj ? (
-                      <span style={{ fontSize: '11px', background: 'rgba(192, 132, 252, 0.2)', border: '1px solid rgba(192, 132, 252, 0.4)', color: '#c084fc', padding: '3px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                      <span style={{ fontSize: '11px', background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#7c3aed', padding: '4px 10px', borderRadius: '12px', fontWeight: 800 }}>
                         🎯 პროექტული (ჩათვლა)
                       </span>
                     ) : (
-                      <span style={{ fontSize: '11px', background: 'rgba(96, 165, 250, 0.15)', border: '1px solid rgba(96, 165, 250, 0.3)', color: '#60a5fa', padding: '3px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                      <span style={{ fontSize: '11px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 800 }}>
                         📊 სტანდარტული (0-10)
                       </span>
                     )}
@@ -178,13 +178,13 @@ const AddSubjectForm: React.FC<AddSubjectFormProps> = ({
                     type="button"
                     onClick={() => openEditModal(subj)}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: 'white',
+                      background: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      color: '#2563eb',
                       padding: '6px 14px',
                       borderRadius: '8px',
                       fontSize: '13px',
-                      fontWeight: 700,
+                      fontWeight: 800,
                       cursor: 'pointer'
                     }}
                   >

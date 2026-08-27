@@ -251,41 +251,43 @@ const SubjectList: React.FC<SubjectListProps> = ({
                             className="admin-card animate-zoom-in"
                             onClick={() => onSubjectClick(card.subjectId, card.subjectName)}
                             style={{ 
-                                minHeight: '180px', 
+                                minHeight: '160px', 
                                 justifyContent: 'center',
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                padding: '25px',
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '20px',
+                                padding: '24px',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 cursor: 'pointer',
                                 position: 'relative',
-                                transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+                                boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`;
-                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.borderColor = '#2563eb';
                                 e.currentTarget.style.transform = 'translateY(-6px)';
-                                e.currentTarget.style.boxShadow = `0 12px 30px ${selectedColor}44`;
+                                e.currentTarget.style.boxShadow = '0 16px 35px rgba(37, 99, 235, 0.18)';
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.borderColor = '#e2e8f0';
                                 e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.04)';
                             }}
                         >
-                            <div style={{ fontSize: '20px', fontWeight: '800', color: 'white', marginBottom: '10px' }}>
+                            <div style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', marginBottom: '8px', textAlign: 'center' }}>
                                 {card.subjectName}
                             </div>
-                            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
                                 მასწავლებელი
                             </div>
-                            <div style={{ fontSize: '18px', color: '#cbd5e1', fontWeight: '600', marginTop: '4px' }}>
+                            <div style={{ fontSize: '16px', color: '#2563eb', fontWeight: 800, marginTop: '4px', textAlign: 'center' }}>
                                 {card.teacherName}
                             </div>
-                            <div style={{ position: 'absolute', bottom: '15px', right: '20px', fontSize: '11px', opacity: 0.3, fontWeight: '800' }}>
+                            <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '11px', color: '#94a3b8', fontWeight: 800 }}>
                                 {new Date().getFullYear()}
                             </div>
                         </div>

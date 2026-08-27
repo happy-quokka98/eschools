@@ -1337,11 +1337,11 @@ const Admin: React.FC = () => {
                     უკან დაბრუნება
                 </button>
 
-                <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '25px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-                        <h2 className="admin-form-title" style={{ margin: 0 }}>🔍 დღის სკანირება & დარღვევები</h2>
+                <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '28px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 8px 25px rgba(0,0,0,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                        <h2 className="admin-form-title" style={{ margin: 0, color: '#0f172a', fontSize: '22px', fontWeight: 900 }}>🔍 დღის სკანირება & დარღვევები</h2>
                         
-                        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '12px' }}>
+                        <div style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '4px', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
                             <button
                                 type="button"
                                 onClick={() => setScanMode('range')}
@@ -1349,9 +1349,9 @@ const Admin: React.FC = () => {
                                     padding: '8px 16px',
                                     borderRadius: '8px',
                                     border: 'none',
-                                    background: scanMode === 'range' ? selectedColor : 'transparent',
-                                    color: 'white',
-                                    fontWeight: scanMode === 'range' ? 800 : 500,
+                                    background: scanMode === 'range' ? '#2563eb' : 'transparent',
+                                    color: scanMode === 'range' ? '#ffffff' : '#475569',
+                                    fontWeight: scanMode === 'range' ? 800 : 600,
                                     cursor: 'pointer',
                                     fontSize: '13px'
                                 }}
@@ -1365,9 +1365,9 @@ const Admin: React.FC = () => {
                                     padding: '8px 16px',
                                     borderRadius: '8px',
                                     border: 'none',
-                                    background: scanMode === 'single' ? selectedColor : 'transparent',
-                                    color: 'white',
-                                    fontWeight: scanMode === 'single' ? 800 : 500,
+                                    background: scanMode === 'single' ? '#2563eb' : 'transparent',
+                                    color: scanMode === 'single' ? '#ffffff' : '#475569',
+                                    fontWeight: scanMode === 'single' ? 800 : 600,
                                     cursor: 'pointer',
                                     fontSize: '13px'
                                 }}
@@ -1379,23 +1379,23 @@ const Admin: React.FC = () => {
                     
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end' }}>
                         <div className="admin-form-group" style={{ margin: 0 }}>
-                            <label className="admin-label">კლასი:</label>
-                            <select className="admin-select" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
-                                <option value="all">🏫 ყველა კლასი</option>
+                            <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800, fontSize: '13px', display: 'block', marginBottom: '6px' }}>კლასი:</label>
+                            <select className="admin-select" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}>
+                                <option value="all" style={{ background: '#ffffff', color: '#0f172a' }}>🏫 ყველა კლასი</option>
                                 {sortedClasses.map(cls => (
-                                    <option key={cls._id} value={cls._id}>{cls.classname}</option>
+                                    <option key={cls._id} value={cls._id} style={{ background: '#ffffff', color: '#0f172a' }}>{cls.classname}</option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="admin-form-group" style={{ margin: 0 }}>
-                            <label className="admin-label">
+                            <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800, fontSize: '13px', display: 'block', marginBottom: '6px' }}>
                                 {scanMode === 'range' ? 'საწყისი თარიღი:' : 'თარიღი:'}
                             </label>
                             <input
                                 type="date"
                                 className="admin-select"
-                                style={{ colorScheme: 'dark', color: 'white' }}
+                                style={{ colorScheme: 'light', color: '#0f172a', background: '#ffffff', border: '1px solid #cbd5e1', fontWeight: 700 }}
                                 value={startDate}
                                 onChange={e => setStartDate(e.target.value)}
                             />
@@ -1403,11 +1403,11 @@ const Admin: React.FC = () => {
 
                         {scanMode === 'range' && (
                             <div className="admin-form-group" style={{ margin: 0 }}>
-                                <label className="admin-label">საბოლოო თარიღი:</label>
+                                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800, fontSize: '13px', display: 'block', marginBottom: '6px' }}>საბოლოო თარიღი:</label>
                                 <input
                                     type="date"
                                     className="admin-select"
-                                    style={{ colorScheme: 'dark', color: 'white' }}
+                                    style={{ colorScheme: 'light', color: '#0f172a', background: '#ffffff', border: '1px solid #cbd5e1', fontWeight: 700 }}
                                     value={endDate}
                                     onChange={e => setEndDate(e.target.value)}
                                 />
@@ -1415,7 +1415,7 @@ const Admin: React.FC = () => {
                         )}
 
                         <div className="admin-form-group" style={{ margin: 0, display: 'flex', alignItems: 'center', height: '44px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#cbd5e1', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
                                 <input
                                     type="checkbox"
                                     checked={onlyDiscrepancies}
@@ -1427,7 +1427,7 @@ const Admin: React.FC = () => {
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0, flex: 1, fontWeight: '800' }}>
+                            <button className="admin-submit-btn" onClick={handleScan} disabled={loading} style={{ height: '44px', margin: 0, flex: 1, fontWeight: '800', background: '#2563eb', color: '#ffffff', borderRadius: '12px', border: 'none', cursor: 'pointer' }}>
                                 {loading ? 'მიმდინარეობს სკანირება...' : '🚀 სკანირება'}
                             </button>
                         </div>
@@ -1709,11 +1709,11 @@ const Admin: React.FC = () => {
                         <button className="admin-back-btn" onClick={handleHistoryBack} style={{ marginBottom: '20px' }}>
                             <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <h2 style={{ color: 'white', width: '100%', textAlign: 'center', marginBottom: '28px', fontSize: '24px', fontWeight: 800 }}>აირჩიეთ კლასი</h2>
+                        <h2 style={{ color: '#0f172a', width: '100%', textAlign: 'center', marginBottom: '24px', fontSize: '28px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>აირჩიეთ კლასი</h2>
                         
                         {/* Year Selector */}
                         <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '28px', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ color: 'white', fontWeight: 'bold', fontSize: '15px' }}>სასწავლო წელი:</span>
+                            <span style={{ color: '#0f172a', fontWeight: 800, fontSize: '15px' }}>სასწავლო წელი:</span>
                             <select
                                 value={selectedHistoryYear}
                                 onChange={(e) => {
@@ -1721,18 +1721,19 @@ const Admin: React.FC = () => {
                                 }}
                                 style={{
                                     padding: '8px 16px',
-                                    borderRadius: '8px',
-                                    background: 'rgba(255, 255, 255, 0.08)',
-                                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                                    color: 'white',
-                                    fontWeight: 'bold',
+                                    borderRadius: '10px',
+                                    background: '#ffffff',
+                                    border: '1px solid #cbd5e1',
+                                    color: '#0f172a',
+                                    fontWeight: 800,
                                     fontSize: '15px',
                                     outline: 'none',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                                 }}
                             >
                                 {getAvailableHistoryYears().map((y) => (
-                                    <option key={y} value={y === getAvailableHistoryYears()[0] ? "" : y} style={{ background: '#1e293b', color: 'white' }}>
+                                    <option key={y} value={y === getAvailableHistoryYears()[0] ? "" : y} style={{ background: '#ffffff', color: '#0f172a' }}>
                                         {y === getAvailableHistoryYears()[0] ? `20${y} (მიმდინარე)` : `20${y}`}
                                     </option>
                                 ))}
@@ -1759,24 +1760,31 @@ const Admin: React.FC = () => {
                                 style={{ 
                                     width: '120px', 
                                     height: '120px', 
-                                    fontSize: '36px', 
-                                    fontWeight: '800', 
-                                    background: 'rgba(255,255,255,0.02)',
-                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    fontSize: '32px', 
+                                    fontWeight: 900, 
+                                    color: '#0f172a',
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '20px',
                                     justifyContent: 'center',
                                     padding: 0,
-                                    minHeight: 'auto'
+                                    minHeight: 'auto',
+                                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.04)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                                 }} 
                                 onClick={() => handleHistoryGradeClick(grade)}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`;
-                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                                    e.currentTarget.style.boxShadow = `0 8px 24px ${selectedColor}44`;
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.borderColor = '#2563eb';
+                                    e.currentTarget.style.transform = 'translateY(-6px)';
+                                    e.currentTarget.style.boxShadow = '0 16px 35px rgba(37, 99, 235, 0.18)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.borderColor = '#e2e8f0';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.04)';
                                 }}
                             >
                                 {grade}
@@ -1790,8 +1798,8 @@ const Admin: React.FC = () => {
                         <button className="admin-back-btn" onClick={handleHistoryBack} style={{ marginBottom: '20px' }}>
                             <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <h2 style={{ color: 'white', width: '100%', textAlign: 'center', marginBottom: '8px', fontSize: '24px', fontWeight: 800 }}>აირჩიეთ პარალელი</h2>
-                        <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '20px', fontSize: '15px' }}>სასწავლო წელი: {selectedHistoryYear ? `20${selectedHistoryYear}` : `20${getPromotionAcademicYear()} (მიმდინარე)`}</div>
+                        <h2 style={{ color: '#0f172a', width: '100%', textAlign: 'center', marginBottom: '8px', fontSize: '28px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>აირჩიეთ პარალელი</h2>
+                        <div style={{ color: '#64748b', marginBottom: '24px', fontSize: '15px', fontWeight: 700 }}>სასწავლო წელი: {selectedHistoryYear ? `20${selectedHistoryYear}` : `20${getPromotionAcademicYear()} (მიმდინარე)`}</div>
                         {historyParallels.length > 0 ? (
                             <div style={{
                                 display: 'flex',
@@ -1802,7 +1810,6 @@ const Admin: React.FC = () => {
                                 justifyContent: 'center'
                             }}>
                                 {historyParallels.sort((a, b) => {
-                                    // Georgian alphabet order: ა, ბ, გ, დ, ე, ვ, ზ, თ, ი, კ, ლ, მ, ნ, ო, პ, ჟ, რ, ს, ტ, უ, ფ, ქ, ღ, ყ, შ, ჩ, ც, ძ, წ, ჭ, ხ, ჯ, ჰ
                                     const georgianOrder = 'აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰ';
                                     const aIndex = georgianOrder.indexOf(a);
                                     const bIndex = georgianOrder.indexOf(b);
@@ -1812,45 +1819,49 @@ const Admin: React.FC = () => {
                                         key={parallel} 
                                         className="admin-card animate-zoom-in"
                                         style={{
-                                            minHeight: '180px',
-                                            width: '280px',
+                                            minHeight: '140px',
+                                            width: '240px',
                                             padding: '24px',
                                             justifyContent: 'center',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            border: '1px solid rgba(255,255,255,0.08)',
+                                            background: '#ffffff',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '20px',
                                             textAlign: 'center',
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            gap: '12px'
+                                            gap: '8px',
+                                            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.04)',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                                         }}
                                         onClick={() => handleHistoryParallelClick(parallel)}
                                         onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`;
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                                            e.currentTarget.style.background = '#ffffff';
+                                            e.currentTarget.style.borderColor = '#2563eb';
                                             e.currentTarget.style.transform = 'translateY(-6px)';
-                                            e.currentTarget.style.boxShadow = `0 12px 30px ${selectedColor}44`;
+                                            e.currentTarget.style.boxShadow = '0 16px 35px rgba(37, 99, 235, 0.18)';
                                         }}
                                         onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                                            e.currentTarget.style.background = '#ffffff';
+                                            e.currentTarget.style.borderColor = '#e2e8f0';
                                             e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+                                            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.04)';
                                         }}
                                     >
-                                        <div style={{ fontSize: '32px', fontWeight: '800', color: 'white' }}>
+                                        <div style={{ fontSize: '32px', fontWeight: 900, color: '#0f172a' }}>
                                             {selectedHistoryGrade}{parallel}
                                         </div>
-                                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {historyParallelTutors[parallel] || 'დამრიგებელი არ არის'}
                                         </div>
-                                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>
                                             მოსწავლეები: {historyParallelCounts[parallel] ?? 0}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ color: 'white', fontSize: '24px', width: '100%', textAlign: 'center' }}>პარალელები ვერ მოიძებნა</div>
+                            <div style={{ color: '#0f172a', fontSize: '20px', fontWeight: 700, width: '100%', textAlign: 'center' }}>პარალელები ვერ მოიძებნა</div>
                         )}
                     </div>
                 );
@@ -1892,7 +1903,7 @@ const Admin: React.FC = () => {
                                                     value={customDates[t._id] ?? t.gradeEntryStartDate}
                                                     onChange={e => handleCustomDateChange(t._id, e.target.value)}
                                                     className="admin-select"
-                                                    style={{ colorScheme: 'dark', color: 'white', padding: '8px 12px', fontSize: '14px', width: 'auto' }}
+                                                    style={{ colorScheme: 'light', color: '#0f172a', background: '#ffffff', border: '1px solid #cbd5e1', fontWeight: 700, padding: '8px 12px', fontSize: '14px', width: 'auto' }}
                                                 />
                                             </td>
                                             <td>
@@ -2169,19 +2180,18 @@ const Admin: React.FC = () => {
                 <button
                     onClick={() => setIsChangePasswordModalOpen(true)}
                     style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        backdropFilter: 'blur(10px)',
-                        color: 'white',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        color: '#ffffff',
                         padding: '10px 18px',
                         borderRadius: '12px',
-                        fontWeight: 700,
+                        fontWeight: 800,
                         fontSize: '13px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
                         transition: 'all 0.2s'
                     }}
                 >
