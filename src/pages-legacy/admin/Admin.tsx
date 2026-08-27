@@ -31,6 +31,7 @@ import SubjectList from '../../components/admin/SubjectList';
 import ExternalsMarkInput from '../../components/admin/ExternalsMarkInput';
 import ReportGenerator from '../../components/admin/ReportGenerator';
 import ReportClassSelector from '../../components/admin/ReportClassSelector';
+import AdminChangePasswordModal from '../../components/admin/AdminChangePasswordModal';
 import StudentCard from '../../components/admin/StudentCard';
 import NoticeBoard from '../../components/NoticeBoard';
 import ChatModule from '../../components/ChatModule';
@@ -123,6 +124,7 @@ const Admin: React.FC = () => {
     const [showReportGenerator, setShowReportGenerator] = useState(false);
     const [selectedStudentForCard, setSelectedStudentForCard] = useState<Student | null>(null);
     const [selectedHistoryYear, setSelectedHistoryYear] = useState<string>('');
+    const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
 
     const getPromotionAcademicYear = (date = new Date()) => {
         const year = date.getFullYear();
@@ -2135,12 +2137,45 @@ const Admin: React.FC = () => {
             <div className="admin-page-bg-glow" style={{ background: `radial-gradient(circle at center, ${selectedColor}26 0%, transparent 70%)` }} />
 
             <ColorPalette />
-            <button
-                onClick={handleLogout}
-                className="logout-btn"
-            >
-                გასვლა
-            </button>
+            <div style={{ position: 'fixed', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 1000 }}>
+                <button
+                    onClick={() => setIsChangePasswordModalOpen(true)}
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white',
+                        padding: '10px 18px',
+                        borderRadius: '12px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    🔑 პაროლის შეცვლა
+                </button>
+                <button
+                    onClick={handleLogout}
+                    className="logout-btn"
+                    style={{ position: 'relative', top: '0', right: '0' }}
+                >
+                    გასვლა
+                </button>
+            </div>
+
+            <AdminChangePasswordModal
+                isOpen={isChangePasswordModalOpen}
+                user_ID={currentUser?.user_ID || 'admin'}
+                selectedColor={selectedColor}
+                onClose={() => setIsChangePasswordModalOpen(false)}
+                onSuccess={(msg) => showPopup(msg, 'success')}
+                onError={(msg) => showPopup(msg, 'error')}
+            />
 
             <div className="admin-page-content">
                 <header className="admin-page-header animate-fade-in-down">
