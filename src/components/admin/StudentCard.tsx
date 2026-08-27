@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { IoArrowBack, IoChevronDown, IoChevronUp, IoCalendarOutline } from 'react-icons/io5';
 import { FaRegComment } from 'react-icons/fa';
+import { customRoundGrade } from "@/lib/statistics";
 
 const ArrowLeftIcon = IoArrowBack as React.FC<{ size?: number | string }>;
 const ChevronDownIcon = IoChevronDown as React.FC<{ size?: number | string }>;
@@ -37,30 +38,6 @@ const StudentCard: React.FC<StudentCardProps> = ({
     const [selectedYearIdx, setSelectedYearIdx] = useState(0); // 0 = Current, 1 = Previous, 2 = Yr Before
     const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
 
-    useEffect(() => {
-        const fetchStudentGrades = async () => {
-            try {
-                if (student.classInfo?._id) {
-                    const res = await fetch(`/api/student/subjects-grades?student_id=${student.user_ID}&class_id=${student.classInfo._id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        setCurrentYearData(data);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching student grades:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchStudentGrades();
-    }, [student]);
-
-    const displayGrade = (grade: number) => {
-        if (grade === -3) return 'ჩთ';
-        return grade > 0 ? grade.toFixed(1) : '—';
-    };
-
     const getGradeInfo = (classname?: string) => {
         if (!classname) return { num: null, parallel: '' };
         const match = classname.match(/^([0-9]+)(.*)$/);
@@ -70,13 +47,22 @@ const StudentCard: React.FC<StudentCardProps> = ({
         };
     };
 
-    const currentYear = new Date().getFullYear();
+    const studentIdToUse = student._id || student.user_ID;
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const baseStartYear = currentMonth >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+
     const gradeInfo = getGradeInfo(student.classInfo?.classname);
 
     // Dynamic year selector tabs definition
     const yearsTabs = Array.from({ length: 3 }).map((_, index) => {
         const yearOffset = index;
-        const academicYear = `${currentYear - yearOffset - 1}-${currentYear - yearOffset}`;
+        const startYr = baseStartYear - yearOffset;
+        const endYr = startYr + 1;
+        const startYearShort = String(startYr).slice(-2);
+        const endYearShort = String(endYr).slice(-2);
+        const academicYear = `${startYearShort}${endYearShort}year`;
         
         let displayClass = 'N/A';
         if (gradeInfo.num !== null) {
@@ -96,116 +82,34 @@ const StudentCard: React.FC<StudentCardProps> = ({
         };
     });
 
-    // Generate mock grades for historical classes if index > 0
-    const getActiveYearData = () => {
-        if (selectedYearIdx === 0) {
-            return currentYearData;
-        }
-
-        if (!currentYearData || !currentYearData.subjects) return null;
-
-        // Generate stable hash using student Mongo ID and selectedYearIdx
-        let hash = 0;
-        const sid = student._id || '';
-        for (let i = 0; i < sid.length; i++) {
-            hash = sid.charCodeAt(i) + ((hash << 5) - hash);
-        }
-
-        const pastYear = currentYear - selectedYearIdx;
-
-        const mockSubjects = currentYearData.subjects.map((subj: any) => {
-            const subjectId = subj.subject_id;
-            
-            let subHash = hash;
-            for (let i = 0; i < subjectId.length; i++) {
-                subHash = subjectId.charCodeAt(i) + ((subHash << 5) - subHash);
-            }
-            const seed = Math.abs(subHash + selectedYearIdx * 37);
-
-            // Seed deterministic averages
-            const firstSemesterAvg = 6.0 + (seed % 35) / 10; // 6.0 - 9.5
-            const secondSemesterAvg = Math.min(10.0, firstSemesterAvg - 0.2 + ((seed * 3) % 10) / 10);
-            const annualAvg = (firstSemesterAvg + secondSemesterAvg) / 2;
-
-            // Generate mock individual points
-            const gradesList: any[] = [];
-            const gradeCount = 5 + (seed % 6); // 5 to 10 points
-            
-            for (let gIdx = 0; gIdx < gradeCount; gIdx++) {
-                const gSeed = (seed * 23 + gIdx * 29) % 100;
-                const isFirstSemester = gIdx < Math.ceil(gradeCount / 2);
-                
-                const targetAvg = isFirstSemester ? firstSemesterAvg : secondSemesterAvg;
-                const diff = -1 + (gSeed % 3); // -1, 0, +1
-                const point = Math.max(5, Math.min(10, Math.round(targetAvg + diff)));
-                const pointType = 1 + (gSeed % 3); // 1=Homework, 2=Classwork, 3=Exam
-
-                let month = 0;
-                let day = 1 + (gSeed % 28);
-                if (isFirstSemester) {
-                    month = 10 + (gSeed % 3); // Oct-Dec
-                } else {
-                    month = 2 + (gSeed % 4); // Feb-May
+    useEffect(() => {
+        const fetchStudentGrades = async () => {
+            setLoading(true);
+            try {
+                if (student.classInfo?._id && studentIdToUse) {
+                    const yearParam = selectedYearIdx === 0 ? '' : `&year=${yearsTabs[selectedYearIdx]?.academicYear || ''}`;
+                    const res = await fetch(`/api/student/subjects-grades?student_id=${studentIdToUse}&class_id=${student.classInfo._id}${yearParam}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setCurrentYearData(data);
+                    }
                 }
-                const dateStr = `${pastYear - (isFirstSemester ? 1 : 0)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-                const comments = [
-                    "გაკვეთილზე აქტიური პასუხი",
-                    "დავალება შესრულებულია შესანიშნავად",
-                    "შემაჯამებელი წერა",
-                    "ყოჩაღ, კარგი შედეგია!",
-                    "ყურადღებიანი საკლასო მუშაობა",
-                    "მოემზადე მეტად"
-                ];
-                const comment = gSeed % 3 === 0 ? comments[gSeed % comments.length] : "";
-
-                gradesList.push({
-                    _id: `mock_${subjectId}_${selectedYearIdx}_${gIdx}`,
-                    point,
-                    pointType,
-                    date: dateStr,
-                    time: "12:30:00",
-                    comment,
-                    checked: true
-                });
-            }
-
-            // Sort grades by date desc
-            gradesList.sort((a, b) => b.date.localeCompare(a.date));
-
-            return {
-                subject_id: subjectId,
-                subject_name: subj.subject_name,
-                teacher_name: subj.teacher_name,
-                first_semester_average: firstSemesterAvg,
-                second_semester_average: secondSemesterAvg,
-                average: annualAvg,
-                grades: gradesList
-            };
-        });
-
-        // Compute overall GPAs
-        let totalFirst = 0, totalSecond = 0, count = 0;
-        mockSubjects.forEach((s: any) => {
-            if (s.average > 0) {
-                totalFirst += s.first_semester_average;
-                totalSecond += s.second_semester_average;
-                count++;
-            }
-        });
-
-        const overallFirst = count > 0 ? totalFirst / count : 0;
-        const overallSecond = count > 0 ? totalSecond / count : 0;
-        const overallAnnual = (overallFirst + overallSecond) / 2;
-
-        return {
-            subjects: mockSubjects,
-            overall: {
-                first_semester_average: overallFirst,
-                second_semester_average: overallSecond,
-                annual_average: overallAnnual
+            } catch (error) {
+                console.error('Error fetching student grades:', error);
+            } finally {
+                setLoading(false);
             }
         };
+        fetchStudentGrades();
+    }, [student, selectedYearIdx]);
+
+    const displayGrade = (grade: number) => {
+        if (grade === -3) return 'ჩთ';
+        return grade > 0 ? customRoundGrade(grade).toString() : '—';
+    };
+
+    const getActiveYearData = () => {
+        return currentYearData;
     };
 
     const getSemesterOfGrade = (dateStr: string) => {
@@ -445,9 +349,9 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                 const isExpanded = !!expandedSubjects[subject.subject_id];
                                 const subjectGrades = subject.grades || [];
                                 
-                                // Group grades by semester
-                                const sem1Grades = subjectGrades.filter((g: any) => getSemesterOfGrade(g.date) === 1);
-                                const sem2Grades = subjectGrades.filter((g: any) => getSemesterOfGrade(g.date) === 2);
+                                const actualGrades = subjectGrades.filter((g: any) => g.point !== -1 && g.point !== -2 && g.point !== '-1' && g.point !== '-2');
+                                const sem1Grades = actualGrades.filter((g: any) => getSemesterOfGrade(g.date) === 1);
+                                const sem2Grades = actualGrades.filter((g: any) => getSemesterOfGrade(g.date) === 2);
 
                                 return (
                                     <div key={subject.subject_id} style={{
@@ -481,7 +385,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     {subject.name || subject.subject_name}
                                                 </h4>
                                                 <span style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'inline-block' }}>
-                                                    მასწავლებელი: {subject.teacher_name} • სულ {subjectGrades.length} ნიშანი
+                                                    მასწავლებელი: {subject.teacher_name} • სულ {actualGrades.length} ნიშანი
                                                 </span>
                                             </div>
                                             <div>
@@ -506,26 +410,52 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     ) : (
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                             {sem1Grades.map((grade: any) => {
-                                                                const isFormative = grade.is_formative || (grade.comment && grade.comment.trim() !== '') || grade.point === 'განმავითარებელი' || typeof grade.point === 'string';
-                                                                const commentText = grade.comment || (typeof grade.point === 'string' && grade.point !== 'განმავითარებელი' ? grade.point : '');
+                                                                const numPoint = typeof grade.point === 'number'
+                                                                    ? grade.point
+                                                                    : (typeof grade.point === 'string' && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : null);
+                                                                const isFormative = grade.is_formative || grade.point === 'განმავითარებელი' || (typeof grade.point === 'string' && numPoint === null && grade.point !== '-1' && grade.point !== '-2' && grade.point !== '-3');
+                                                                const commentText = grade.comment || (typeof grade.point === 'string' && numPoint === null && grade.point !== 'განმავითარებელი' ? grade.point : '');
+
                                                                 let bg = 'rgba(255,255,255,0.03)';
                                                                 let fg = 'white';
-                                                                let displayVal = grade.point === -3 ? 'ჩთ' : (grade.point === -1 ? (grade.checked ? '✓' : '✗') : grade.point);
+                                                                let displayVal: any = '';
+
                                                                 if (isFormative) {
                                                                     displayVal = commentText || 'განმავითარებელი';
                                                                     bg = 'rgba(245, 158, 11, 0.2)';
                                                                     fg = '#f59e0b';
-                                                                } else if (grade.point >= 9) { bg = 'rgba(76, 175, 80, 0.1)'; fg = '#4caf50'; }
-                                                                else if (grade.point >= 7) { bg = 'rgba(255, 152, 0, 0.1)'; fg = '#ff9800'; }
-                                                                else if (grade.point >= 4) { bg = 'rgba(33, 150, 243, 0.1)'; fg = '#2196f3'; }
-                                                                else if (grade.point > 0) { bg = 'rgba(244, 67, 54, 0.1)'; fg = '#f44336'; }
-                                                                else if (grade.point === -3) { bg = 'rgba(156, 39, 176, 0.1)'; fg = '#ab47bc'; }
+                                                                } else if (grade.point === -1 || numPoint === -1) {
+                                                                    if (grade.checked) {
+                                                                        displayVal = '✓';
+                                                                        bg = 'rgba(76, 175, 80, 0.15)';
+                                                                        fg = '#4caf50';
+                                                                    } else {
+                                                                        displayVal = '✗';
+                                                                        bg = 'rgba(244, 67, 54, 0.15)';
+                                                                        fg = '#f44336';
+                                                                    }
+                                                                } else if (grade.point === -2 || numPoint === -2) {
+                                                                    displayVal = 'X';
+                                                                    bg = 'rgba(156, 39, 176, 0.15)';
+                                                                    fg = '#ab47bc';
+                                                                } else if (grade.point === -3 || numPoint === -3) {
+                                                                    displayVal = 'ჩთ';
+                                                                    bg = 'rgba(33, 150, 243, 0.15)';
+                                                                    fg = '#2196f3';
+                                                                } else {
+                                                                    const numVal = numPoint !== null ? numPoint : (typeof grade.point === 'number' ? grade.point : 0);
+                                                                    displayVal = String(numVal > 0 ? numVal : grade.point);
+                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#4caf50'; }
+                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#ff9800'; }
+                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2196f3'; }
+                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#f44336'; }
+                                                                }
 
                                                                 const typeLabel = isFormative ? 'განმავითარებელი' : (grade.pointType === 1 ? 'საშინაო' : grade.pointType === 2 ? 'საკლასო' : grade.pointType === 3 ? 'შემაჯამებელი' : grade.pointType === 4 ? 'ექსტერნი' : 'უცნობი');
                                                                 const displayStr = String(displayVal);
 
                                                                 return (
-                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
+                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.25)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.04)'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                                 <div style={{
@@ -547,8 +477,8 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                                 <span style={{
                                                                                     fontSize: '11px',
                                                                                     fontWeight: '700',
-                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.25)' : (grade.pointType === 1 ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.06)')),
-                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 1 ? '#f59e0b' : '#cbd5e1')),
+                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.06)'))),
+                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 2 ? '#fbbf24' : (grade.pointType === 1 ? '#60a5fa' : '#cbd5e1'))),
                                                                                     padding: '3px 8px',
                                                                                     borderRadius: '10px'
                                                                                 }}>
@@ -589,26 +519,52 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     ) : (
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                             {sem2Grades.map((grade: any) => {
-                                                                const isFormative = grade.is_formative || (grade.comment && grade.comment.trim() !== '') || grade.point === 'განმავითარებელი' || typeof grade.point === 'string';
-                                                                const commentText = grade.comment || (typeof grade.point === 'string' && grade.point !== 'განმავითარებელი' ? grade.point : '');
+                                                                const numPoint = typeof grade.point === 'number'
+                                                                    ? grade.point
+                                                                    : (typeof grade.point === 'string' && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : null);
+                                                                const isFormative = grade.is_formative || grade.point === 'განმავითარებელი' || (typeof grade.point === 'string' && numPoint === null && grade.point !== '-1' && grade.point !== '-2' && grade.point !== '-3');
+                                                                const commentText = grade.comment || (typeof grade.point === 'string' && numPoint === null && grade.point !== 'განმავითარებელი' ? grade.point : '');
+
                                                                 let bg = 'rgba(255,255,255,0.03)';
                                                                 let fg = 'white';
-                                                                let displayVal = grade.point === -3 ? 'ჩთ' : (grade.point === -1 ? (grade.checked ? '✓' : '✗') : grade.point);
+                                                                let displayVal: any = '';
+
                                                                 if (isFormative) {
                                                                     displayVal = commentText || 'განმავითარებელი';
                                                                     bg = 'rgba(245, 158, 11, 0.2)';
                                                                     fg = '#f59e0b';
-                                                                } else if (grade.point >= 9) { bg = 'rgba(76, 175, 80, 0.1)'; fg = '#4caf50'; }
-                                                                else if (grade.point >= 7) { bg = 'rgba(255, 152, 0, 0.1)'; fg = '#ff9800'; }
-                                                                else if (grade.point >= 4) { bg = 'rgba(33, 150, 243, 0.1)'; fg = '#2196f3'; }
-                                                                else if (grade.point > 0) { bg = 'rgba(244, 67, 54, 0.1)'; fg = '#f44336'; }
-                                                                else if (grade.point === -3) { bg = 'rgba(156, 39, 176, 0.1)'; fg = '#ab47bc'; }
+                                                                } else if (grade.point === -1 || numPoint === -1) {
+                                                                    if (grade.checked) {
+                                                                        displayVal = '✓';
+                                                                        bg = 'rgba(76, 175, 80, 0.15)';
+                                                                        fg = '#4caf50';
+                                                                    } else {
+                                                                        displayVal = '✗';
+                                                                        bg = 'rgba(244, 67, 54, 0.15)';
+                                                                        fg = '#f44336';
+                                                                    }
+                                                                } else if (grade.point === -2 || numPoint === -2) {
+                                                                    displayVal = 'X';
+                                                                    bg = 'rgba(156, 39, 176, 0.15)';
+                                                                    fg = '#ab47bc';
+                                                                } else if (grade.point === -3 || numPoint === -3) {
+                                                                    displayVal = 'ჩთ';
+                                                                    bg = 'rgba(33, 150, 243, 0.15)';
+                                                                    fg = '#2196f3';
+                                                                } else {
+                                                                    const numVal = numPoint !== null ? numPoint : (typeof grade.point === 'number' ? grade.point : 0);
+                                                                    displayVal = String(numVal > 0 ? numVal : grade.point);
+                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#4caf50'; }
+                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#ff9800'; }
+                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2196f3'; }
+                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#f44336'; }
+                                                                }
 
                                                                 const typeLabel = isFormative ? 'განმავითარებელი' : (grade.pointType === 1 ? 'საშინაო' : grade.pointType === 2 ? 'საკლასო' : grade.pointType === 3 ? 'შემაჯამებელი' : grade.pointType === 4 ? 'ექსტერნი' : 'უცნობი');
                                                                 const displayStr = String(displayVal);
 
                                                                 return (
-                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
+                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.25)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.04)'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                                 <div style={{
@@ -630,8 +586,8 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                                 <span style={{
                                                                                     fontSize: '11px',
                                                                                     fontWeight: '700',
-                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.25)' : (grade.pointType === 1 ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.06)')),
-                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 1 ? '#f59e0b' : '#cbd5e1')),
+                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.06)'))),
+                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 2 ? '#fbbf24' : (grade.pointType === 1 ? '#60a5fa' : '#cbd5e1'))),
                                                                                     padding: '3px 8px',
                                                                                     borderRadius: '10px'
                                                                                 }}>

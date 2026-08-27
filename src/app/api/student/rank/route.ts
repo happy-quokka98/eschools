@@ -32,19 +32,20 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Fetch all grades for this class to compute everyone's stats
-    const allGrades = (await findGrades(db, { class_id })) as unknown as Grade[];
+    const allGrades = (await findGrades(db, { class_id: parsedClassId })) as unknown as Grade[];
 
     // Check if it is a 5th grade class (affects grading statistics)
     const classDoc = await db.collection("class").findOne({ _id: parsedClassId });
     const isFifthGrade = isFifthGradeClassname(classDoc?.classname);
 
-    // Group grades by student
+    // Group grades by student (supporting both _id and user_ID)
     const gradesByStudent: Record<string, Grade[]> = {};
     for (const s of students) {
-      gradesByStudent[s.user_ID] = [];
+      gradesByStudent[s._id.toString()] = [];
+      if (s.user_ID) gradesByStudent[s.user_ID] = gradesByStudent[s._id.toString()];
     }
     for (const g of allGrades) {
-      const sId = g.student_id.toString();
+      const sId = g.student_id ? g.student_id.toString() : "";
       if (gradesByStudent[sId] !== undefined) {
         gradesByStudent[sId].push(g);
       }
@@ -55,11 +56,14 @@ export async function GET(req: NextRequest) {
     const studentStatsMap: Record<string, any> = {};
 
     for (const s of students) {
-      const sGrades = gradesByStudent[s.user_ID] || [];
+      const sIdStr = s._id.toString();
+      const sGrades = gradesByStudent[sIdStr] || (s.user_ID ? gradesByStudent[s.user_ID] : []) || [];
       const stats = calculateStatistics(sGrades, isFifthGrade);
       const avg = stats.annual?.average || 0;
-      studentAveragesList.push({ studentId: s.user_ID, average: avg });
-      studentStatsMap[s.user_ID] = stats;
+      studentAveragesList.push({ studentId: sIdStr, average: avg });
+      if (s.user_ID) studentAveragesList.push({ studentId: s.user_ID, average: avg });
+      studentStatsMap[sIdStr] = stats;
+      if (s.user_ID) studentStatsMap[s.user_ID] = stats;
     }
 
     // 4. Sort students by average descending to determine rank

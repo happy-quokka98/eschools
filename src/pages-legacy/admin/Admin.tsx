@@ -30,6 +30,7 @@ import DetailedGradeHistory from '../../components/admin/DetailedGradeHistory';
 import SubjectList from '../../components/admin/SubjectList';
 import ExternalsMarkInput from '../../components/admin/ExternalsMarkInput';
 import ReportGenerator from '../../components/admin/ReportGenerator';
+import ReportClassSelector from '../../components/admin/ReportClassSelector';
 import StudentCard from '../../components/admin/StudentCard';
 import NoticeBoard from '../../components/NoticeBoard';
 import ChatModule from '../../components/ChatModule';
@@ -126,7 +127,7 @@ const Admin: React.FC = () => {
     const getPromotionAcademicYear = (date = new Date()) => {
         const year = date.getFullYear();
         const month = date.getMonth() + 1;
-        let startYear = month >= 7 ? year : year - 1;
+        let startYear = month >= 9 ? year : year - 1;
         let endYear = startYear + 1;
         return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
     };
@@ -1034,12 +1035,12 @@ const Admin: React.FC = () => {
         }
     };
 
-    const handleAddSubject = async (subjectName: string) => {
+    const handleAddSubject = async (subjectName: string, isProject: boolean = false) => {
         try {
             const res = await fetch('/api/subject/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: subjectName }),
+                body: JSON.stringify({ name: subjectName, is_project: isProject, is_pass_fail: isProject }),
             });
             if (res.ok) {
                 showPopup('საგანი წარმატებით დაემატა.', 'success');
@@ -1399,7 +1400,8 @@ const Admin: React.FC = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         date: selectedDate,
-                        class_id: selectedClassId !== 'all' && selectedClassId !== '' ? selectedClassId : undefined
+                        class_id: selectedClassId !== 'all' && selectedClassId !== '' ? selectedClassId : undefined,
+                        isAdmin: true
                     })
                 });
                 const data = await res.json();
@@ -1668,9 +1670,9 @@ const Admin: React.FC = () => {
             case 'addClassForm':
                 return <AddClassForm onAddClass={handleAddClass} onCancel={() => setView('classOptions')} />;
             case 'addSubjectForm':
-                return <AddSubjectForm onAddSubject={handleAddSubject} onCancel={() => setView('classOptions')} subjects={(subjects || []).map(s => s.name)} />;
+                return <AddSubjectForm onAddSubject={handleAddSubject} onCancel={() => setView('classOptions')} subjects={(subjects || []).map(s => s.name)} subjectsList={subjects || []} onSubjectUpdated={fetchAllSubjects} />;
             case 'editClass':
-                return <EditClassForm onUpdateClass={handleUpdateClass} onCancel={() => setView('classOptions')} classes={classes} teachers={teachers} subjects={subjects} />;
+                return <EditClassForm onUpdateClass={handleUpdateClass} onCancel={() => setView('classOptions')} classes={classes} teachers={teachers} subjects={subjects} onSubjectUpdated={fetchAllSubjects} />;
             case 'classHistoryGrades':
                 return (
                     <div style={{ width: '100%', maxWidth: '900px', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', alignItems: 'center' }}>
@@ -2039,70 +2041,15 @@ const Admin: React.FC = () => {
                     );
                 }
                 return (
-                    <div style={{ width: '100%', maxWidth: '1200px' }}>
-                        <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
-                            <ArrowLeftIcon size={20} /> უკან
-                        </button>
-                        <h2 style={{ color: 'white', fontSize: '28px', textAlign: 'center', marginBottom: '30px', fontWeight: 800 }}>
-                            უწყისის გენერირება - კლასების არჩევა
-                        </h2>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                            gap: '20px',
-                            padding: '20px'
-                        }}>
-                            {classes
-                                .sort((a, b) => {
-                                    // Sort classes in Georgian order (1ა, 1ბ, 2ა, 2ბ, etc.)
-                                    const gradeA = parseInt(a.classname.match(/\d+/)?.[0] || '0');
-                                    const gradeB = parseInt(b.classname.match(/\d+/)?.[0] || '0');
-                                    if (gradeA !== gradeB) return gradeA - gradeB;
-
-                                    const letterA = a.classname.match(/[ა-ჰ]/)?.[0] || '';
-                                    const letterB = b.classname.match(/[ა-ჰ]/)?.[0] || '';
-                                    return letterA.localeCompare(letterB, 'ka');
-                                })
-                                .map((cls) => (
-                                    <div
-                                        key={cls._id}
-                                        onClick={() => {
-                                            setSelectedClassForReport({ id: cls._id, name: cls.classname });
-                                            setShowReportGenerator(true);
-                                        }}
-                                        className="admin-card animate-zoom-in"
-                                        style={{
-                                            minHeight: '130px',
-                                            padding: '25px',
-                                            justifyContent: 'center',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            border: '1px solid rgba(255,255,255,0.08)'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`;
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                                            e.currentTarget.style.transform = 'translateY(-6px)';
-                                            e.currentTarget.style.boxShadow = `0 12px 30px ${selectedColor}44`;
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
-                                        }}
-                                    >
-                                        <div style={{
-                                            fontSize: '32px',
-                                            fontWeight: '800',
-                                            color: 'white',
-                                            textAlign: 'center'
-                                        }}>
-                                            {cls.classname}
-                                        </div>
-                                    </div>
-                                ))}
-                        </div>
-                    </div>
+                    <ReportClassSelector
+                        classes={classes}
+                        selectedColor={selectedColor}
+                        onSelectClass={(cls) => {
+                            setSelectedClassForReport(cls);
+                            setShowReportGenerator(true);
+                        }}
+                        onBackClick={handleBackClick}
+                    />
                 );
             case 'reportGenerator':
                 return selectedClassForReport ? (

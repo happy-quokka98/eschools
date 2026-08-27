@@ -1,8 +1,10 @@
 import { MongoClient, Db } from "mongodb";
 
-const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@schools.xqta1tx.mongodb.net/school";
+const uri = process.env.MONGODB_URI || "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@gimnazia.zbe8lqs.mongodb.net/school?appName=gimnazia";
 
-const options = {};
+const options = {
+  maxPoolSize: 100,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -101,22 +103,70 @@ export function formatYearToCollectionName(yearInput?: string | null): string | 
   return null;
 }
 
+export function getAcademicYearDateRange(yearInput?: string | null): { $gte: string; $lt: string } | null {
+  if (!yearInput) return null;
+
+  let startYear: number | null = null;
+  let endYear: number | null = null;
+
+  const rangeMatch = yearInput.match(/^(\d{2,4})[-/](\d{2,4})$/);
+  if (rangeMatch) {
+    let s = parseInt(rangeMatch[1], 10);
+    let e = parseInt(rangeMatch[2], 10);
+    if (s < 100) s += 2000;
+    if (e < 100) e += 2000;
+    startYear = s;
+    endYear = e;
+  }
+
+  if (!startYear) {
+    const yearColMatch = yearInput.match(/^(\d{2})(\d{2})year$/);
+    if (yearColMatch) {
+      startYear = 2000 + parseInt(yearColMatch[1], 10);
+      endYear = 2000 + parseInt(yearColMatch[2], 10);
+    }
+  }
+
+  if (!startYear) {
+    const singleMatch = yearInput.match(/^(\d{4})(year)?$/);
+    if (singleMatch) {
+      startYear = parseInt(singleMatch[1], 10);
+      endYear = startYear + 1;
+    }
+  }
+
+  if (startYear && endYear) {
+    return {
+      $gte: `${startYear}-09-01`,
+      $lt: `${endYear}-07-01`,
+    };
+  }
+
+  return null;
+}
+
 export async function findGrades(
   db: Db,
   filter: Record<string, any>,
   options?: { year?: string | null; date?: string | null }
 ): Promise<any[]> {
   let collectionName = "";
+  const queryFilter: Record<string, any> = { ...filter };
 
   if (options?.year) {
     const resolved = formatYearToCollectionName(options.year);
     if (resolved) {
       collectionName = resolved;
     }
+    const range = getAcademicYearDateRange(options.year);
+    if (range && !queryFilter.date) {
+      queryFilter.date = range;
+    }
   }
 
   if (!collectionName && options?.date) {
     collectionName = getGradesCollectionName(options.date);
+    if (!queryFilter.date) queryFilter.date = options.date;
   }
 
   if (!collectionName && filter.date && typeof filter.date === "string") {
@@ -124,28 +174,19 @@ export async function findGrades(
   }
 
   if (!collectionName) {
-    collectionName = getGradesCollectionName(new Date());
+    collectionName = "grades";
   }
 
-  // Ensure database indexes are created for performance
-  ensureIndexes(db, collectionName);
+  ensureIndexes(db, collectionName).catch(() => {});
 
-  const results = await db.collection(collectionName).find(filter).toArray();
+  let results = await db.collection(collectionName).find(queryFilter).sort({ date: 1 }).toArray();
 
-  return results.filter((grade) => {
-    if (!grade.date) return true;
-    const dateObj = new Date(grade.date);
-    if (isNaN(dateObj.getTime())) return true;
-    const month = dateObj.getMonth() + 1; // getMonth is 0-indexed (0-11)
-    const day = dateObj.getDate();
-    // Exclude June 16 to September 14 inclusive
-    const isExcluded =
-      (month === 6 && day >= 16) ||
-      month === 7 ||
-      month === 8 ||
-      (month === 9 && day <= 14);
-    return !isExcluded;
-  });
+  if (results.length === 0 && collectionName !== "grades") {
+    ensureIndexes(db, "grades").catch(() => {});
+    results = await db.collection("grades").find(queryFilter).sort({ date: 1 }).toArray();
+  }
+
+  return results;
 }
 
 const indexedCollections = new Set<string>();

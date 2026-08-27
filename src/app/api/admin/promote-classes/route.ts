@@ -5,8 +5,8 @@ import { ObjectId } from "mongodb";
 const getAcademicYearString = (date = new Date()) => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
-  // Transitions to next academic year starting July 1st
-  let startYear = month >= 7 ? year : year - 1;
+  // Transitions to next academic year starting September 1st
+  let startYear = month >= 9 ? year : year - 1;
   let endYear = startYear + 1;
   return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
 };

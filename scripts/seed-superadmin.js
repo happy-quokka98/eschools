@@ -1,7 +1,7 @@
 const { MongoClient } = require("mongodb");
 const bcrypt = require("bcryptjs");
 
-const uri = "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@schools.xqta1tx.mongodb.net/school";
+const uri = process.env.MONGODB_URI || "mongodb+srv://kakhiweinrooneykakhidze_db_user:XnInXModwMkw2J3j@gimnazia.zbe8lqs.mongodb.net/school?appName=gimnazia";
 
 async function seedSuperAdmin() {
   const client = new MongoClient(uri);

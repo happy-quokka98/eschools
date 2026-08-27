@@ -4,6 +4,7 @@ import { useColor } from './ColorContext';
 import { IoChevronDown, IoChevronUp, IoCalendarOutline } from 'react-icons/io5';
 import { FaRegComment } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
+import { customRoundGrade } from "@/lib/statistics";
 
 const ChevronDownIcon = IoChevronDown as React.ComponentType<any>;
 const ChevronUpIcon = IoChevronUp as React.ComponentType<any>;
@@ -84,7 +85,7 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
         }));
     };
 
-    const formatAvg = (n: number) => (n >= 0 && n <= 10 ? n.toFixed(1) : '—');
+    const formatAvg = (n: number) => (n > 0 && n <= 10 ? customRoundGrade(n).toString() : '—');
 
     return (
         <div style={{
@@ -132,11 +133,24 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                 fontSize: '14px'
                             }}
                         >
-                            {studentData.available_years.map((y) => (
-                                <option key={y} value={y === studentData.available_years?.[0] ? "" : y} style={{ background: '#1e293b', color: 'white' }}>
-                                    {y === studentData.available_years?.[0] ? `20${y} (მიმდინარე)` : `20${y}`}
-                                </option>
-                            ))}
+                            {studentData.available_years.map((y, idx) => {
+                                const isCurrent = idx === 0;
+                                let formattedYear = y;
+                                if (y && !y.startsWith('20')) {
+                                    const m = y.match(/^(\d{2})[-/](\d{2})$/);
+                                    if (m) formattedYear = `20${m[1]}-20${m[2]}`;
+                                    else {
+                                        const mCol = y.match(/^(\d{2})(\d{2})year$/);
+                                        if (mCol) formattedYear = `20${mCol[1]}-20${mCol[2]}`;
+                                        else formattedYear = `20${y}`;
+                                    }
+                                }
+                                return (
+                                    <option key={y} value={isCurrent ? "" : y} style={{ background: '#1e293b', color: 'white' }}>
+                                        {isCurrent ? `${formattedYear} (მიმდინარე)` : formattedYear}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                 )}
@@ -312,25 +326,28 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                         gap: '12px',
                                     }}>
                                         {[...subject.grades]
+                                            .filter((g: any) => g.point !== -1 && g.point !== -2 && g.point !== '-1' && g.point !== '-2')
                                             .sort((a, b) => {
                                                 const dateCompare = b.date.localeCompare(a.date);
                                                 if (dateCompare !== 0) return dateCompare;
                                                 return (b.time || '').localeCompare(a.time || '');
                                             })
                                             .map((grade) => {
-                                                const isFormative = grade.is_formative || (grade.comment && grade.comment.trim() !== '') || grade.point === 'განმავითარებელი' || typeof grade.point === 'string';
+                                                const numPoint = typeof grade.point === 'number' 
+                                                    ? grade.point 
+                                                    : (typeof grade.point === 'string' && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : null);
+                                                const isFormative = grade.is_formative || grade.point === 'განმავითარებელი' || (typeof grade.point === 'string' && numPoint === null && grade.point !== '-1' && grade.point !== '-2' && grade.point !== '-3');
+                                                const commentText = grade.comment || (typeof grade.point === 'string' && numPoint === null && grade.point !== 'განმავითარებელი' ? grade.point : '');
 
-                                                let displayVal = '';
+                                                let displayVal: any = '';
                                                 let bg = '#eee';
                                                 let fg = '#333';
-
-                                                const commentText = grade.comment || (typeof grade.point === 'string' && grade.point !== 'განმავითარებელი' ? grade.point : '');
 
                                                 if (isFormative) {
                                                     displayVal = commentText || 'განმავითარებელი';
                                                     bg = 'rgba(245, 158, 11, 0.15)';
                                                     fg = '#d97706';
-                                                } else if (grade.point === -1) {
+                                                } else if (grade.point === -1 || numPoint === -1) {
                                                     if (grade.checked) {
                                                         displayVal = '✓';
                                                         bg = '#e8f5e9';
@@ -340,24 +357,24 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                         bg = '#ffebee';
                                                         fg = '#f44336';
                                                     }
-                                                } else if (grade.point === -2) {
+                                                } else if (grade.point === -2 || numPoint === -2) {
                                                     displayVal = 'X';
                                                     bg = '#f3e5f5';
                                                     fg = '#9c27b0';
-                                                } else if (grade.point === -3) {
+                                                } else if (grade.point === -3 || numPoint === -3) {
                                                     displayVal = 'ჩთ';
                                                     bg = '#e3f2fd';
                                                     fg = '#2196f3';
                                                 } else {
-                                                    const numPt = typeof grade.point === 'number' ? grade.point : (typeof grade.point === 'string' && !isNaN(parseInt(grade.point, 10)) ? parseInt(grade.point, 10) : -1);
-                                                    displayVal = grade.point.toString();
-                                                    if (numPt >= 9) {
+                                                    const numVal = numPoint !== null ? numPoint : (typeof grade.point === 'number' ? grade.point : 0);
+                                                    displayVal = String(numVal > 0 ? numVal : grade.point);
+                                                    if (numVal >= 9) {
                                                         bg = '#e8f5e9';
                                                         fg = '#4caf50';
-                                                    } else if (numPt >= 7) {
+                                                    } else if (numVal >= 7) {
                                                         bg = '#fff3e0';
                                                         fg = '#ff9800';
-                                                    } else if (numPt >= 4) {
+                                                    } else if (numVal >= 4) {
                                                         bg = '#e3f2fd';
                                                         fg = '#2196f3';
                                                     } else {
@@ -378,7 +395,7 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         background: '#fafafa',
-                                                        border: '1px solid #eaeaea',
+                                                        border: grade.pointType === 3 ? '1px solid #fca5a5' : (grade.pointType === 2 ? '1px solid #fde047' : '1px solid #eaeaea'),
                                                         borderRadius: '8px',
                                                         padding: '12px 16px',
                                                         gap: '8px',
@@ -414,8 +431,8 @@ const StudentSubjectsGrades: React.FC<StudentSubjectsGradesProps> = ({ studentId
                                                                     <span style={{
                                                                         fontSize: '12px',
                                                                         fontWeight: 'bold',
-                                                                        color: isFormative ? '#d97706' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 1 ? '#f59e0b' : '#555')),
-                                                                        backgroundColor: isFormative ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.15)' : (grade.pointType === 1 ? 'rgba(245, 158, 11, 0.15)' : '#eee')),
+                                                                        color: isFormative ? '#d97706' : (grade.pointType === 3 ? '#dc2626' : (grade.pointType === 2 ? '#d97706' : (grade.pointType === 1 ? '#2563eb' : '#555'))),
+                                                                        backgroundColor: isFormative ? '#fef3c7' : (grade.pointType === 3 ? '#fee2e2' : (grade.pointType === 2 ? '#fef3c7' : (grade.pointType === 1 ? '#dbeafe' : '#eee'))),
                                                                         padding: '2px 8px',
                                                                         borderRadius: '12px',
                                                                         marginRight: '8px',

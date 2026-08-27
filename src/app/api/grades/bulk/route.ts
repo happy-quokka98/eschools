@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, getGradesCollectionName } from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { invalidateCache } from "@/lib/cache";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,6 +13,40 @@ export async function POST(req: NextRequest) {
 
     const db = await getDb();
     const timeStr = new Date().toTimeString().split(" ")[0];
+
+    // Check teacher date permissions unless request is marked as isAdmin
+    const firstGrade = grades[0];
+    const isAdmin = firstGrade && (firstGrade.isAdmin === true);
+
+    if (!isAdmin) {
+      let minAllowedDate: Date;
+      if (firstGrade && firstGrade.teacher_id && ObjectId.isValid(firstGrade.teacher_id)) {
+        const teacher = await db.collection("teachers").findOne({ _id: new ObjectId(firstGrade.teacher_id) });
+        if (teacher && teacher.gradeEntryStartDate) {
+          minAllowedDate = new Date(teacher.gradeEntryStartDate);
+          minAllowedDate.setHours(0, 0, 0, 0);
+        } else {
+          minAllowedDate = new Date();
+          minAllowedDate.setDate(minAllowedDate.getDate() - 14);
+          minAllowedDate.setHours(0, 0, 0, 0);
+        }
+      } else {
+        minAllowedDate = new Date();
+        minAllowedDate.setDate(minAllowedDate.getDate() - 14);
+        minAllowedDate.setHours(0, 0, 0, 0);
+      }
+
+      for (const g of grades) {
+        const gDate = new Date(g.date);
+        gDate.setHours(0, 0, 0, 0);
+        if (gDate < minAllowedDate) {
+          return NextResponse.json(
+            { message: "მასწავლებელს ნიშნის შეტანა/ჩასწორება შეუძლია მხოლოდ 2 კვირის (14 დღის) ვადით. ჩასასწორებლად მიმართეთ ადმინისტრაციას." },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     // Group bulk operations by collection name
     const operationsByCollection: Record<string, any[]> = {};
@@ -79,6 +114,8 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    invalidateCache(["student_grades_", "top_students_api", "class_stats_"]);
 
     return NextResponse.json({ message: "ნიშნები წარმატებით შეინახა!" });
   } catch (error) {

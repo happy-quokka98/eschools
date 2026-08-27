@@ -9,7 +9,7 @@ import { getCachedOrFetch } from "@/lib/cache";
 const getPromotionAcademicYear = (date = new Date()) => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
-  let startYear = month >= 7 ? year : year - 1;
+  let startYear = month >= 9 ? year : year - 1;
   let endYear = startYear + 1;
   return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
 };
@@ -59,10 +59,14 @@ export async function GET(req: NextRequest) {
   const studentObjID = student._id;
   const classObjID = new ObjectId(classID);
 
-  const grades = (await findGrades(db, {
-    student_id: studentObjID,
-    class_id: classObjID,
-  }, { year, date })) as unknown as Grade[];
+  const cacheKey = `student_grades_${studentObjID.toString()}_${classID}_${year || ""}_${date || ""}`;
+
+  const grades = (await getCachedOrFetch(cacheKey, 60000, async () => {
+    return findGrades(db, {
+      student_id: studentObjID,
+      class_id: classObjID,
+    }, { year, date });
+  })) as unknown as Grade[];
 
   // Create maps supporting name, subject_name, ID
   const subjectMap: Record<string, { name: string }> = {};

@@ -72,7 +72,8 @@ const ExternalsMarkInput: React.FC<ExternalsMarkInputProps> = ({
                 point: grade,
                 pointType: 1,
                 date: new Date().toISOString().split('T')[0],
-                checked: true
+                checked: true,
+                isAdmin: true
             }));
 
             const res = await fetch('/api/grades/bulk', {

@@ -1,5 +1,12 @@
 import type { Grade, SemesterStats, AnnualStats, SubjectStats, Statistics } from "./models";
 
+export function customRoundGrade(val: number): number {
+  if (isNaN(val) || val <= 0) return 0;
+  const floor = Math.floor(val);
+  const decimal = val - floor;
+  return decimal >= (0.45 - 0.0001) ? floor + 1 : floor;
+}
+
 export function calculateSemesterStats(grades: Grade[], startMonth: number, endMonth: number): SemesterStats {
   let totalPoints = 0;
   let count = 0;

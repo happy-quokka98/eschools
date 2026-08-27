@@ -16,9 +16,22 @@ export async function GET(req: NextRequest) {
   }
 
   const db = await getDb();
-  const filter: Record<string, string> = { student_id: studentID, class_id: classID };
+  const filter: Record<string, any> = {};
+
+  if (ObjectId.isValid(studentID)) {
+    filter.student_id = new ObjectId(studentID);
+  } else {
+    filter.student_id = studentID;
+  }
+
+  if (ObjectId.isValid(classID)) {
+    filter.class_id = new ObjectId(classID);
+  } else {
+    filter.class_id = classID;
+  }
+
   if (subjectID) {
-    filter.subject_id = subjectID;
+    filter.subject_id = ObjectId.isValid(subjectID) ? new ObjectId(subjectID) : subjectID;
   }
 
   const grades = (await findGrades(db, filter, { year, date })) as unknown as Grade[];

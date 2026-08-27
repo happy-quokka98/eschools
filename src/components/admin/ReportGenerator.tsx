@@ -32,6 +32,8 @@ interface Grade {
     checked: boolean;
 }
 
+import { customRoundGrade } from "@/lib/statistics";
+
 interface ReportGeneratorProps {
     classId: string;
     className: string;
@@ -51,6 +53,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     const [grades, setGrades] = useState<Grade[]>([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
+    const [reportType, setReportType] = useState<'sem1' | 'sem2' | 'annual'>('annual');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -90,9 +93,33 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
         fetchData();
     }, [classId, className]);
 
+    const reportTitles: Record<'sem1' | 'sem2' | 'annual', string> = {
+        sem1: 'პირველი სემესტრის უწყისი',
+        sem2: 'მეორე სემესტრის უწყისი',
+        annual: 'წლიური უწყისი'
+    };
+
+    const filterGradesByReportType = (gradeList: Grade[]) => {
+        if (reportType === 'annual') return gradeList;
+        return gradeList.filter(g => {
+            if (!g.date) return false;
+            const parts = g.date.split('-');
+            if (parts.length < 2) return false;
+            const month = parseInt(parts[1], 10);
+            if (reportType === 'sem1') {
+                return month >= 9 || month <= 1;
+            } else {
+                return month >= 2 && month <= 6;
+            }
+        });
+    };
+
     const generateReport = async () => {
         setGenerating(true);
         try {
+            const reportTitle = reportTitles[reportType];
+            const filteredAllGrades = filterGradesByReportType(grades);
+
             const doc = new Document({
                 sections: [{
                     properties: {},
@@ -103,12 +130,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                             spacing: { after: 200 }
                         }),
                         new Paragraph({
-                            children: [new TextRun({ text: '2024-2025 სასწავლო წელი', size: 20 })],
+                            children: [new TextRun({ text: '2025-2026 სასწავლო წელი', size: 20 })],
                             alignment: AlignmentType.CENTER,
                             spacing: { after: 200 }
                         }),
                         new Paragraph({
-                            children: [new TextRun({ text: `კლასი: ${className} - საბოლოო შეფასების უწყისი`, size: 20 })],
+                            children: [new TextRun({ text: `კლასი: ${className} - ${reportTitle}`, size: 22, bold: true })],
                             alignment: AlignmentType.CENTER,
                             spacing: { after: 400 }
                         }),
@@ -124,20 +151,24 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                                     ]
                                 }),
                                 ...students.map((student, index) => {
-                                    const allGrades = grades.filter(g => g.student_id === student._id);
-                                    const valid = allGrades.filter(g => g.point !== -1);
-                                    const average = valid.length > 0 ? (valid.reduce((sum, g) => sum + g.point, 0) / valid.length).toFixed(1) : '';
+                                    const studentGrades = filteredAllGrades.filter(g => g.student_id === student._id);
+                                    const validGrades = studentGrades.filter(g => typeof g.point === 'number' && g.point >= 1 && g.point <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative);
+                                    
+                                    const rawOverallAvg = validGrades.length > 0 ? (validGrades.reduce((sum, g) => sum + g.point, 0) / validGrades.length) : 0;
+                                    const averageDisplay = rawOverallAvg > 0 ? customRoundGrade(rawOverallAvg).toString() : '—';
+
                                     return new TableRow({
                                         children: [
                                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } }),
                                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${student.surname} ${student.name}`, size: 16 })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } }),
                                             ...subjects.map(subject => {
-                                                const sGrades = grades.filter(g => g.student_id === student._id && g.subject_id === subject._id);
-                                                const sValid = sGrades.filter(g => g.point !== -1);
-                                                const sAvg = sValid.length > 0 ? (Math.round((sValid.reduce((sum, g) => sum + g.point, 0) / sValid.length) * 10) / 10).toString() : '';
-                                                return new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sAvg, size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } });
+                                                const sGrades = studentGrades.filter(g => g.subject_id === subject._id);
+                                                const sValid = sGrades.filter(g => typeof g.point === 'number' && g.point >= 1 && g.point <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative);
+                                                const rawSubjAvg = sValid.length > 0 ? (sValid.reduce((sum, g) => sum + g.point, 0) / sValid.length) : 0;
+                                                const sAvgDisplay = rawSubjAvg > 0 ? customRoundGrade(rawSubjAvg).toString() : '—';
+                                                return new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sAvgDisplay, size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } });
                                             }),
-                                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: average, size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } })
+                                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: averageDisplay, size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } })
                                         ]
                                     });
                                 })
@@ -151,12 +182,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${className}_უწყისი_${new Date().toISOString().split('T')[0]}.docx`;
+            link.download = `${className}_${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-            alert('უწყისი წარმატებით გენერირებულია!');
+            alert(`${reportTitle} წარმატებით გენერირებულია!`);
         } catch (error) {
             console.error('Error:', error);
             alert('უწყისის გენერირებისას მოხდა შეცდომა');
@@ -173,20 +204,51 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                <h2 className="admin-view-title">უწყისის გენერატორი</h2>
+                <h2 className="admin-view-title">უწყისის გენერატორი ({className})</h2>
             </header>
+
+            {/* Report Type Selector Tabs */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                {[
+                    { key: 'sem1', label: '📘 პირველი სემესტრის უწყისი' },
+                    { key: 'sem2', label: '📗 მეორე სემესტრის უწყისი' },
+                    { key: 'annual', label: '📙 წლიური უწყისი' },
+                ].map(item => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setReportType(item.key as any)}
+                        style={{
+                            flex: 1,
+                            minWidth: '200px',
+                            padding: '14px 20px',
+                            borderRadius: '14px',
+                            border: reportType === item.key ? `2px solid ${selectedColor}` : '1px solid rgba(255,255,255,0.1)',
+                            background: reportType === item.key ? `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)` : 'rgba(255,255,255,0.03)',
+                            color: 'white',
+                            fontWeight: 800,
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: reportType === item.key ? `0 8px 20px ${selectedColor}44` : 'none'
+                        }}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </div>
 
             <div className="admin-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '30px' }}>
                 <div className="admin-card animate-zoom-in" style={{ padding: '30px', textAlign: 'center', minHeight: 'auto', cursor: 'default' }}>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginBottom: '10px' }}>სამიზნე კლასი</div>
-                    <div style={{ fontSize: '32px', fontWeight: '800', color: selectedColor }}>{className}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginBottom: '10px' }}>არჩეული უწყისი</div>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: selectedColor }}>{reportTitles[reportType]}</div>
                     <div style={{ height: '2px', width: '40px', background: 'rgba(255,255,255,0.1)', margin: '15px auto' }}></div>
-                    <div style={{ fontSize: '14px', color: 'white' }}>{students.length} მოსწავლე</div>
+                    <div style={{ fontSize: '14px', color: 'white' }}>კლასი: {className} ({students.length} მოსწავლე)</div>
                 </div>
 
                 <div className="admin-card animate-zoom-in" style={{ padding: '30px', textAlign: 'center', animationDelay: '0.1s', minHeight: 'auto', cursor: 'default' }}>
                     <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginBottom: '10px' }}>სულ მონაცემები</div>
-                    <div style={{ fontSize: '32px', fontWeight: '800', color: 'white' }}>{grades.length}</div>
+                    <div style={{ fontSize: '32px', fontWeight: '800', color: 'white' }}>{filterGradesByReportType(grades).length}</div>
                     <div style={{ height: '2px', width: '40px', background: 'rgba(255,255,255,0.1)', margin: '15px auto' }}></div>
                     <div style={{ fontSize: '14px', color: 'white' }}>{subjects.length} საგანი</div>
                 </div>
@@ -203,16 +265,16 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 </div>
 
                 <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '15px', padding: '20px', border: '1px dashed rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '20px' }}>
-                        გენერირებული დოკუმენტი მოიცავს ყველა მოსწავლის საბოლოო შეფასებას თითოეულ საგანში და საერთო საშუალო ქულას.
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '20px' }}>
+                        გენერირებული დოკუმენტი ({reportTitles[reportType]}) მოიცავს ყველა მოსწავლის დამრგვალებულ შეფასებას (0.45 წესით) თითოეულ საგანში და საერთო საშუალო ქულას.
                     </p>
                     <button
                         className="admin-submit-btn"
                         onClick={generateReport}
                         disabled={generating}
-                        style={{ width: 'auto', padding: '15px 50px', margin: '0 auto', fontSize: '16px' }}
+                        style={{ width: 'auto', padding: '15px 50px', margin: '0 auto', fontSize: '16px', borderRadius: '12px' }}
                     >
-                        {generating ? 'გენერირება...' : 'უწყისის გადმოწერა (.DOCX)'}
+                        {generating ? 'გენერირება...' : `${reportTitles[reportType]}-ს გადმოწერა (.DOCX)`}
                     </button>
                 </div>
             </div>
