@@ -1,9 +1,10 @@
-import React from 'react';
-import { IoArrowBack } from 'react-icons/io5';
+import React, { useState } from 'react';
+import { IoArrowBack, IoSearch } from 'react-icons/io5';
 import { FaTrashAlt, FaEdit } from 'react-icons/fa';
 import { MdRestorePage } from 'react-icons/md';
 
 const ArrowLeftIcon = IoArrowBack as React.FC<{ size?: number | string }>;
+const SearchIcon = IoSearch as React.FC<{ size?: number | string; style?: React.CSSProperties }>;
 const TrashIcon = FaTrashAlt as React.FC;
 const RestoreIcon = MdRestorePage as React.FC;
 const EditIcon = FaEdit as React.FC;
@@ -59,6 +60,8 @@ const StudentList: React.FC<StudentListProps> = ({
     onEditStudent,
     onViewStudentCard,
 }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+
     const getClassNameStr = (item: any): string => {
         if (!item) return '';
         if (typeof item === 'string') return item;
@@ -110,6 +113,18 @@ const StudentList: React.FC<StudentListProps> = ({
         })
         : studentsInGrade;
 
+    // Apply manual search filter
+    const finalFilteredStudents = filteredStudents.filter(student => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) return true;
+        const name = (student.name || '').toLowerCase();
+        const surname = (student.surname || '').toLowerCase();
+        const fullName = `${name} ${surname}`;
+        const id = (student.ID || student.user_ID || '').toLowerCase();
+        const classNameStr = getClassNameStr(student.classInfo).toLowerCase();
+        return fullName.includes(query) || name.includes(query) || surname.includes(query) || id.includes(query) || classNameStr.includes(query);
+    });
+
     // Build unique list of numeric grades present in classes, with default 1..12 fallback
     const parsedGrades = Array.from(new Set(
         classes
@@ -140,8 +155,33 @@ const StudentList: React.FC<StudentListProps> = ({
                 <button className="admin-back-btn" onClick={onBackClick}>
                     <ArrowLeftIcon size={20} /> უკან
                 </button>
-                <h2 className="admin-view-title">მოსწავლეთა სია</h2>
+                <h2 className="admin-view-title">მოსწავლეთა სია ({finalFilteredStudents.length})</h2>
             </header>
+
+            {/* Manual Search Bar */}
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
+                    <SearchIcon style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={18} />
+                    <input
+                        type="text"
+                        placeholder="ძებნა ხელით (სახელი, გვარი, პ/ნ, კლასი)..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '12px 16px 12px 42px',
+                            borderRadius: '14px',
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            color: '#0f172a',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            outline: 'none',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+                        }}
+                    />
+                </div>
+            </div>
 
             {/* Grade Filters */}
             <div style={{ marginBottom: '30px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
@@ -200,7 +240,7 @@ const StudentList: React.FC<StudentListProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredStudents.length > 0 ? filteredStudents.map((student) => (
+                        {finalFilteredStudents.length > 0 ? finalFilteredStudents.map((student) => (
                             <tr key={student._id}>
                                 <td>{student.name}</td>
                                 <td>{student.surname}</td>

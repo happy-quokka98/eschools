@@ -58,32 +58,65 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     useEffect(() => {
         const fetchData = async () => {
             try {
+                // Fetch classes to find selected class details & subjects
+                const classesRes = await fetch('/api/classes');
+                const allClasses = await classesRes.json();
+                const selectedClass = Array.isArray(allClasses) 
+                    ? allClasses.find((c: any) => String(c._id) === String(classId))
+                    : null;
+
+                // Fetch all students and filter by classId
                 const match = className.match(/^([0-9]+)([ა-ჰ])$/);
                 const studentsUrl = match
                     ? `/api/student/grade/${match[1]}?parallel=${encodeURIComponent(match[2])}`
                     : '/api/student/all';
-                const studentsRes = await fetch(studentsUrl);
-                const fetched = await studentsRes.json();
-                const classStudents = match ? fetched : fetched.filter((s: any) => s.classInfo && s.classInfo._id === classId);
-                setStudents(classStudents);
-
-                const classesRes = await fetch('/api/classes');
-                const allClasses = await classesRes.json();
-                const selectedClass = allClasses.find((c: any) => c._id === classId);
                 
-                if (selectedClass && selectedClass.subjects) {
-                    const subjectsRes = await fetch('/api/subjects');
-                    const allSubjects = await subjectsRes.json();
-                    setSubjects(allSubjects.filter((s: any) => selectedClass.subjects.some((cs: any) => cs.subject_id === s._id)));
-                } else {
-                    const subjectsRes = await fetch('/api/subjects');
-                    const allSubjects = await subjectsRes.json();
-                    setSubjects(allSubjects);
+                const studentsRes = await fetch(studentsUrl);
+                const fetchedStudents = await studentsRes.json();
+
+                let classStudents: Student[] = [];
+                if (Array.isArray(fetchedStudents)) {
+                    classStudents = fetchedStudents.filter((s: any) => {
+                        const sid = String(s.class_id || s.classInfo?._id || '');
+                        const sname = s.classInfo?.classname || s.classInfo?.ID || '';
+                        return sid === String(classId) || (className && sname === className);
+                    });
+                    
+                    // Fallback to all fetched if filter resulted in 0 but fetched has students
+                    if (classStudents.length === 0 && match) {
+                        classStudents = fetchedStudents;
+                    }
                 }
 
+                // If still empty, try fallback to /api/student/all
+                if (classStudents.length === 0) {
+                    const fallbackRes = await fetch('/api/student/all');
+                    const fallbackFetched = await fallbackRes.json();
+                    if (Array.isArray(fallbackFetched)) {
+                        classStudents = fallbackFetched.filter((s: any) => {
+                            const sid = String(s.class_id || s.classInfo?._id || '');
+                            const sname = s.classInfo?.classname || s.classInfo?.ID || '';
+                            return sid === String(classId) || (className && sname === className);
+                        });
+                    }
+                }
+                setStudents(classStudents);
+
+                // Fetch subjects and filter by class subjects
+                const subjectsRes = await fetch('/api/subjects');
+                const allSubjects = await subjectsRes.json();
+                if (selectedClass && Array.isArray(selectedClass.subjects) && selectedClass.subjects.length > 0) {
+                    const classSubjectIds = new Set(selectedClass.subjects.map((cs: any) => String(cs.subject_id || cs._id || cs)));
+                    const matchedSubjects = allSubjects.filter((s: any) => classSubjectIds.has(String(s._id)));
+                    setSubjects(matchedSubjects.length > 0 ? matchedSubjects : allSubjects);
+                } else {
+                    setSubjects(Array.isArray(allSubjects) ? allSubjects : []);
+                }
+
+                // Fetch grades
                 const gradesRes = await fetch(`/api/grades?class_id=${classId}`);
                 const classGrades = await gradesRes.json();
-                setGrades(classGrades);
+                setGrades(Array.isArray(classGrades) ? classGrades : []);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -151,10 +184,15 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                                     ]
                                 }),
                                 ...students.map((student, index) => {
-                                    const studentGrades = filteredAllGrades.filter(g => g.student_id === student._id);
-                                    const validGrades = studentGrades.filter(g => typeof g.point === 'number' && g.point >= 1 && g.point <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative);
+                                    const studentGrades = filteredAllGrades.filter(g => String(g.student_id) === String(student._id));
+                                    const validGrades = studentGrades.filter(g => {
+                                        const p = typeof g.point === 'number' ? g.point : parseFloat(String(g.point));
+                                        return !isNaN(p) && p >= 1 && p <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative;
+                                    });
                                     
-                                    const rawOverallAvg = validGrades.length > 0 ? (validGrades.reduce((sum, g) => sum + g.point, 0) / validGrades.length) : 0;
+                                    const rawOverallAvg = validGrades.length > 0 
+                                        ? (validGrades.reduce((sum, g) => sum + (typeof g.point === 'number' ? g.point : parseFloat(String(g.point))), 0) / validGrades.length) 
+                                        : 0;
                                     const averageDisplay = rawOverallAvg > 0 ? customRoundGrade(rawOverallAvg).toString() : '—';
 
                                     return new TableRow({
@@ -162,9 +200,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } }),
                                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${student.surname} ${student.name}`, size: 16 })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } }),
                                             ...subjects.map(subject => {
-                                                const sGrades = studentGrades.filter(g => g.subject_id === subject._id);
-                                                const sValid = sGrades.filter(g => typeof g.point === 'number' && g.point >= 1 && g.point <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative);
-                                                const rawSubjAvg = sValid.length > 0 ? (sValid.reduce((sum, g) => sum + g.point, 0) / sValid.length) : 0;
+                                                const sGrades = studentGrades.filter(g => String(g.subject_id) === String(subject._id));
+                                                const sValid = sGrades.filter(g => {
+                                                    const p = typeof g.point === 'number' ? g.point : parseFloat(String(g.point));
+                                                    return !isNaN(p) && p >= 1 && p <= 10 && g.pointType !== 0 && g.pointType !== 4 && !(g as any).is_formative;
+                                                });
+                                                const rawSubjAvg = sValid.length > 0 
+                                                    ? (sValid.reduce((sum, g) => sum + (typeof g.point === 'number' ? g.point : parseFloat(String(g.point))), 0) / sValid.length) 
+                                                    : 0;
                                                 const sAvgDisplay = rawSubjAvg > 0 ? customRoundGrade(rawSubjAvg).toString() : '—';
                                                 return new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sAvgDisplay, size: 16 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER, borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } } });
                                             }),
@@ -196,7 +239,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
         }
     };
 
-    if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '40px' }}>იტვირთება...</div>;
+    if (loading) return <div style={{ color: '#64748b', textAlign: 'center', marginTop: '40px', fontWeight: 600 }}>იტვირთება...</div>;
 
     return (
         <div className="admin-view-container animate-fade-in-down">
@@ -223,14 +266,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                             minWidth: '200px',
                             padding: '14px 20px',
                             borderRadius: '14px',
-                            border: reportType === item.key ? `2px solid ${selectedColor}` : '1px solid rgba(255,255,255,0.1)',
-                            background: reportType === item.key ? `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)` : 'rgba(255,255,255,0.03)',
-                            color: 'white',
+                            border: reportType === item.key ? `2px solid ${selectedColor}` : '1px solid #cbd5e1',
+                            background: reportType === item.key ? `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)` : '#ffffff',
+                            color: reportType === item.key ? 'white' : '#334155',
                             fontWeight: 800,
                             fontSize: '14px',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            boxShadow: reportType === item.key ? `0 8px 20px ${selectedColor}44` : 'none'
+                            boxShadow: reportType === item.key ? `0 8px 20px ${selectedColor}44` : '0 2px 8px rgba(0,0,0,0.03)'
                         }}
                     >
                         {item.label}
@@ -240,32 +283,32 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
 
             <div className="admin-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '30px' }}>
                 <div className="admin-card animate-zoom-in" style={{ padding: '30px', textAlign: 'center', minHeight: 'auto', cursor: 'default' }}>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginBottom: '10px' }}>არჩეული უწყისი</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>არჩეული უწყისი</div>
                     <div style={{ fontSize: '24px', fontWeight: '800', color: selectedColor }}>{reportTitles[reportType]}</div>
-                    <div style={{ height: '2px', width: '40px', background: 'rgba(255,255,255,0.1)', margin: '15px auto' }}></div>
-                    <div style={{ fontSize: '14px', color: 'white' }}>კლასი: {className} ({students.length} მოსწავლე)</div>
+                    <div style={{ height: '2px', width: '40px', background: '#e2e8f0', margin: '15px auto' }}></div>
+                    <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '700' }}>კლასი: {className} ({students.length} მოსწავლე)</div>
                 </div>
 
                 <div className="admin-card animate-zoom-in" style={{ padding: '30px', textAlign: 'center', animationDelay: '0.1s', minHeight: 'auto', cursor: 'default' }}>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginBottom: '10px' }}>სულ მონაცემები</div>
-                    <div style={{ fontSize: '32px', fontWeight: '800', color: 'white' }}>{filterGradesByReportType(grades).length}</div>
-                    <div style={{ height: '2px', width: '40px', background: 'rgba(255,255,255,0.1)', margin: '15px auto' }}></div>
-                    <div style={{ fontSize: '14px', color: 'white' }}>{subjects.length} საგანი</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>სულ მონაცემები</div>
+                    <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>{filterGradesByReportType(grades).length}</div>
+                    <div style={{ height: '2px', width: '40px', background: '#e2e8f0', margin: '15px auto' }}></div>
+                    <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '700' }}>{subjects.length} საგანი</div>
                 </div>
             </div>
 
             <div className="admin-form-container animate-zoom-in" style={{ maxWidth: 'none', animationDelay: '0.2s' }}>
-                <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '20px' }}>უწყისში შემავალი საგნები</h3>
+                <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', marginBottom: '20px', color: '#0f172a' }}>უწყისში შემავალი საგნები</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '30px' }}>
                     {subjects.map(subject => (
-                        <div key={subject._id} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '100px', fontSize: '13px', color: 'white', fontWeight: '600' }}>
+                        <div key={subject._id} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '8px 16px', borderRadius: '100px', fontSize: '13px', color: '#334155', fontWeight: '700' }}>
                             {subject.name}
                         </div>
                     ))}
                 </div>
 
-                <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '15px', padding: '20px', border: '1px dashed rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '20px' }}>
+                <div style={{ background: '#f8fafc', borderRadius: '15px', padding: '20px', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+                    <p style={{ color: '#475569', fontSize: '14px', fontWeight: '600', marginBottom: '20px' }}>
                         გენერირებული დოკუმენტი ({reportTitles[reportType]}) მოიცავს ყველა მოსწავლის დამრგვალებულ შეფასებას (0.45 წესით) თითოეულ საგანში და საერთო საშუალო ქულას.
                     </p>
                     <button
