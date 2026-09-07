@@ -44,6 +44,7 @@ interface StudentListProps {
     onResetPassword: (studentId: string) => void;
     onEditStudent: (student: Student) => void;
     onViewStudentCard: (student: Student) => void;
+    isReadOnly?: boolean;
 }
 
 const StudentList: React.FC<StudentListProps> = ({
@@ -59,6 +60,7 @@ const StudentList: React.FC<StudentListProps> = ({
     onResetPassword,
     onEditStudent,
     onViewStudentCard,
+    isReadOnly = false,
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -259,15 +261,19 @@ const StudentList: React.FC<StudentListProps> = ({
                                         >
                                             ქარდი
                                         </button>
-                                        <button className="admin-action-btn edit" onClick={() => onEditStudent(student)} title="რედაქტირება">
-                                            <EditIcon />
-                                        </button>
-                                        <button className="admin-action-btn delete" onClick={() => onDeleteStudent(student._id)} title="წაშლა">
-                                            <TrashIcon />
-                                        </button>
-                                        <button className="admin-action-btn reset" onClick={() => onResetPassword(student._id)} title="აღდგენა">
-                                            <RestoreIcon />
-                                        </button>
+                                        {!isReadOnly && (
+                                            <>
+                                                <button className="admin-action-btn edit" onClick={() => onEditStudent(student)} title="რედაქტირება">
+                                                    <EditIcon />
+                                                </button>
+                                                <button className="admin-action-btn delete" onClick={() => onDeleteStudent(student._id)} title="წაშლა">
+                                                    <TrashIcon />
+                                                </button>
+                                                <button className="admin-action-btn reset" onClick={() => onResetPassword(student._id)} title="აღდგენა">
+                                                    <RestoreIcon />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

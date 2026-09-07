@@ -129,7 +129,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
         }));
     };
 
-    if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '40px' }}>იტვირთება...</div>;
+    if (loading) return <div style={{ color: '#0f172a', textAlign: 'center', marginTop: '40px', fontWeight: '700' }}>იტვირთება...</div>;
 
     const activeYearData = getActiveYearData();
     const activeTabObj = yearsTabs[selectedYearIdx];
@@ -150,7 +150,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
             </header>
 
             {/* Profile Info Card */}
-            <div className="admin-form-container animate-zoom-in" style={{ maxWidth: 'none', marginBottom: '24px', padding: '30px' }}>
+            <div className="admin-form-container animate-zoom-in" style={{ maxWidth: 'none', marginBottom: '24px', padding: '30px', background: '#ffffff' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px', alignItems: 'center' }}>
                     
                     {/* Left: Avatar & Name */}
@@ -168,11 +168,11 @@ const StudentCard: React.FC<StudentCardProps> = ({
                             fontWeight: '800', 
                             color: 'white', 
                             boxShadow: `0 8px 25px ${selectedColor}44`,
-                            border: '2px solid rgba(255,255,255,0.2)'
+                            border: '2px solid rgba(255,255,255,0.5)'
                         }}>
                             {student.name ? student.name[0] : ''}{student.surname ? student.surname[0] : ''}
                         </div>
-                        <h1 style={{ color: 'white', margin: 0, fontSize: '26px', fontWeight: '800', letterSpacing: '0.5px' }}>
+                        <h1 style={{ color: '#0f172a', margin: 0, fontSize: '26px', fontWeight: '800', letterSpacing: '0.5px' }}>
                             {student.name} {student.surname}
                         </h1>
                         <span style={{ 
@@ -180,8 +180,8 @@ const StudentCard: React.FC<StudentCardProps> = ({
                             marginTop: '8px', 
                             padding: '4px 12px', 
                             borderRadius: '12px', 
-                            background: 'rgba(255,255,255,0.06)', 
-                            color: '#94a3b8', 
+                            background: '#f1f5f9', 
+                            color: '#475569', 
                             fontSize: '11px', 
                             fontWeight: '700', 
                             textTransform: 'uppercase', 
@@ -194,31 +194,31 @@ const StudentCard: React.FC<StudentCardProps> = ({
                     {/* Middle: Details Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' }}>
                         <div style={{ 
-                            background: 'rgba(255,255,255,0.02)', 
-                            border: '1px solid rgba(255,255,255,0.06)', 
+                            background: '#f8fafc', 
+                            border: '1px solid #e2e8f0', 
                             borderRadius: '18px', 
                             padding: '20px', 
                             display: 'flex', 
                             flexDirection: 'column', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
                         }}>
-                            <span className="admin-label" style={{ fontSize: '11px', marginBottom: '6px', color: '#94a3b8' }}>პირადი ნომერი</span>
-                            <span style={{ color: 'white', fontWeight: '800', fontSize: '17px' }}>{student.user_ID}</span>
+                            <span className="admin-label" style={{ fontSize: '11px', marginBottom: '6px', color: '#64748b' }}>პირადი ნომერი</span>
+                            <span style={{ color: '#0f172a', fontWeight: '800', fontSize: '17px' }}>{student.user_ID}</span>
                         </div>
                         <div style={{ 
-                            background: 'rgba(255,255,255,0.02)', 
-                            border: '1px solid rgba(255,255,255,0.06)', 
+                            background: '#f8fafc', 
+                            border: '1px solid #e2e8f0', 
                             borderRadius: '18px', 
                             padding: '20px', 
                             display: 'flex', 
                             flexDirection: 'column', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
                         }}>
-                            <span className="admin-label" style={{ fontSize: '11px', marginBottom: '6px', color: '#94a3b8' }}>კლასი</span>
+                            <span className="admin-label" style={{ fontSize: '11px', marginBottom: '6px', color: '#64748b' }}>კლასი</span>
                             <span style={{ color: selectedColor, fontWeight: '800', fontSize: '17px' }}>
                                 {isPreschool ? 'სკოლამდელი' : activeTabObj.className}
                             </span>
@@ -228,16 +228,16 @@ const StudentCard: React.FC<StudentCardProps> = ({
                     {/* Right: Score Card */}
                     <div style={{ 
                         textAlign: 'center', 
-                        background: 'rgba(255,255,255,0.03)', 
+                        background: '#f8fafc', 
                         borderRadius: '22px', 
                         padding: '22px', 
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        boxShadow: '0 6px 20px rgba(0,0,0,0.1)'
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.04)'
                     }}>
-                        <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700' }}>
                             წლიური საშუალო
                         </div>
-                        <div style={{ fontSize: '38px', fontWeight: '900', color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+                        <div style={{ fontSize: '38px', fontWeight: '900', color: '#0f172a' }}>
                             {isPreschool ? '—' : displayGrade(overall.annual_average)}
                         </div>
                         <div style={{ height: '4px', width: '50px', background: selectedColor, margin: '10px auto 0', borderRadius: '2px' }}></div>
@@ -251,7 +251,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                     <button
                         key={tab.index}
                         className={`admin-tab-btn ${selectedYearIdx === tab.index ? 'active' : ''}`}
-                        style={selectedYearIdx === tab.index ? { background: `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`, color: 'white' } : {}}
+                        style={selectedYearIdx === tab.index ? { background: `linear-gradient(135deg, ${selectedColor} 0%, #3a8dde 100%)`, color: 'white' } : { color: '#475569' }}
                         onClick={() => {
                             setSelectedYearIdx(tab.index);
                             setExpandedSubjects({});
@@ -264,15 +264,15 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
             {/* Main content display based on preschool or valid school year */}
             {isPreschool ? (
-                <div className="admin-form-container" style={{ maxWidth: 'none', textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.4)', borderRadius: '24px' }}>
-                    <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>მონაცემები არ არსებობს</h3>
+                <div className="admin-form-container" style={{ maxWidth: 'none', textAlign: 'center', padding: '60px 20px', color: '#64748b', borderRadius: '24px', background: '#ffffff' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px', color: '#0f172a' }}>მონაცემები არ არსებობს</h3>
                     <p style={{ fontSize: '15px' }}>ამ სასწავლო წელს მოსწავლე ჯერ არ დადიოდა სკოლაში (სკოლამდელი ასაკი).</p>
                 </div>
             ) : (
                 <>
-                    {/* Semestral statistics (no attendance) */}
-                    <div className="admin-list-container animate-fade-in-down" style={{ animationDelay: '0.05s', marginBottom: '30px' }}>
-                        <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', margin: '24px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+                    {/* Semestral statistics */}
+                    <div className="admin-list-container animate-fade-in-down" style={{ animationDelay: '0.05s', marginBottom: '30px', background: '#ffffff' }}>
+                        <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', margin: '24px 24px 16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', color: '#0f172a' }}>
                             სემესტრული საშუალო ნიშნები
                         </h3>
                         <table className="admin-table">
@@ -284,13 +284,13 @@ const StudentCard: React.FC<StudentCardProps> = ({
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>პირველი სემესტრი</td>
+                                    <td style={{ color: '#0f172a', fontWeight: '700' }}>პირველი სემესტრი</td>
                                     <td style={{ textAlign: 'center', color: '#2196f3', fontWeight: '800' }}>
                                         {displayGrade(overall.first_semester_average)}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>მეორე სემესტრი</td>
+                                    <td style={{ color: '#0f172a', fontWeight: '700' }}>მეორე სემესტრი</td>
                                     <td style={{ textAlign: 'center', color: '#4caf50', fontWeight: '800' }}>
                                         {displayGrade(overall.second_semester_average)}
                                     </td>
@@ -299,10 +299,10 @@ const StudentCard: React.FC<StudentCardProps> = ({
                         </table>
                     </div>
 
-                    {/* Subject GPAs table (no attendance) */}
+                    {/* Subject GPAs table */}
                     {subjectsList.length > 0 ? (
-                        <div className="admin-list-container animate-fade-in-down" style={{ animationDelay: '0.1s', marginBottom: '30px' }}>
-                            <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', margin: '24px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+                        <div className="admin-list-container animate-fade-in-down" style={{ animationDelay: '0.1s', marginBottom: '30px', background: '#ffffff' }}>
+                            <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '18px', margin: '24px 24px 16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', color: '#0f172a' }}>
                                 აკადემიური მოსწრება საგნების მიხედვით
                             </h3>
                             <table className="admin-table">
@@ -317,7 +317,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                 <tbody>
                                     {subjectsList.map((subject: any) => (
                                         <tr key={subject.subject_id}>
-                                            <td style={{ fontWeight: '800', color: 'white' }}>{subject.name || subject.subject_name}</td>
+                                            <td style={{ fontWeight: '800', color: '#0f172a' }}>{subject.name || subject.subject_name}</td>
                                             <td style={{ textAlign: 'center', color: '#2196f3', fontWeight: '700' }}>
                                                 {displayGrade(subject.first_semester_average)}
                                             </td>
@@ -333,14 +333,14 @@ const StudentCard: React.FC<StudentCardProps> = ({
                             </table>
                         </div>
                     ) : (
-                        <div className="admin-form-container" style={{ maxWidth: 'none', textAlign: 'center', color: 'rgba(255,255,255,0.5)', marginBottom: '30px' }}>
+                        <div className="admin-form-container" style={{ maxWidth: 'none', textAlign: 'center', color: '#64748b', marginBottom: '30px', background: '#ffffff' }}>
                             ამ სასწავლო წელს საგნები არ ფიქსირდება
                         </div>
                     )}
 
                     {/* Expandable Grade Logs grouped by Subjects and Semesters */}
-                    <div className="admin-list-container animate-fade-in-down" style={{ padding: '30px', animationDelay: '0.15s' }}>
-                        <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '20px', marginBottom: '22px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                    <div className="admin-list-container animate-fade-in-down" style={{ padding: '30px', animationDelay: '0.15s', background: '#ffffff' }}>
+                        <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '20px', marginBottom: '22px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', color: '#0f172a' }}>
                             ნიშნების დეტალური ისტორია საგნების მიხედვით
                         </h3>
 
@@ -355,8 +355,8 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
                                 return (
                                     <div key={subject.subject_id} style={{
-                                        background: 'rgba(255,255,255,0.015)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        background: '#f8fafc',
+                                        border: '1px solid #e2e8f0',
                                         borderRadius: '20px',
                                         overflow: 'hidden',
                                         transition: 'all 0.3s ease'
@@ -370,32 +370,32 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 cursor: 'pointer',
-                                                background: 'rgba(255,255,255,0.01)',
-                                                borderBottom: isExpanded ? '1px solid rgba(255,255,255,0.06)' : 'none'
+                                                background: '#f8fafc',
+                                                borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none'
                                             }}
                                             onMouseEnter={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                                e.currentTarget.style.background = '#f1f5f9';
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.01)';
+                                                e.currentTarget.style.background = '#f8fafc';
                                             }}
                                         >
                                             <div>
                                                 <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: selectedColor }}>
                                                     {subject.name || subject.subject_name}
                                                 </h4>
-                                                <span style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'inline-block' }}>
+                                                <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'inline-block', fontWeight: '600' }}>
                                                     მასწავლებელი: {subject.teacher_name} • სულ {actualGrades.length} ნიშანი
                                                 </span>
                                             </div>
-                                            <div>
+                                            <div style={{ color: '#0f172a' }}>
                                                 {isExpanded ? <ChevronUpIcon size={22} /> : <ChevronDownIcon size={22} />}
                                             </div>
                                         </div>
 
                                         {/* Accordion content */}
                                         {isExpanded && (
-                                            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', background: '#ffffff' }}>
                                                 
                                                 {/* Semester 1 Grades */}
                                                 <div>
@@ -404,7 +404,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     </h5>
                                                     
                                                     {sem1Grades.length === 0 ? (
-                                                        <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontStyle: 'italic' }}>
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
                                                             ნიშნები არ ფიქსირდება
                                                         </div>
                                                     ) : (
@@ -416,46 +416,46 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                 const isFormative = grade.is_formative || grade.point === 'განმავითარებელი' || (typeof grade.point === 'string' && numPoint === null && grade.point !== '-1' && grade.point !== '-2' && grade.point !== '-3');
                                                                 const commentText = grade.comment || (typeof grade.point === 'string' && numPoint === null && grade.point !== 'განმავითარებელი' ? grade.point : '');
 
-                                                                let bg = 'rgba(255,255,255,0.03)';
-                                                                let fg = 'white';
+                                                                let bg = '#f1f5f9';
+                                                                let fg = '#0f172a';
                                                                 let displayVal: any = '';
 
                                                                 if (isFormative) {
                                                                     displayVal = commentText || 'განმავითარებელი';
-                                                                    bg = 'rgba(245, 158, 11, 0.2)';
-                                                                    fg = '#f59e0b';
+                                                                    bg = 'rgba(245, 158, 11, 0.15)';
+                                                                    fg = '#d97706';
                                                                 } else if (grade.point === -1 || numPoint === -1) {
                                                                     if (grade.checked) {
                                                                         displayVal = '✓';
                                                                         bg = 'rgba(76, 175, 80, 0.15)';
-                                                                        fg = '#4caf50';
+                                                                        fg = '#16a34a';
                                                                     } else {
                                                                         displayVal = '✗';
                                                                         bg = 'rgba(244, 67, 54, 0.15)';
-                                                                        fg = '#f44336';
+                                                                        fg = '#dc2626';
                                                                     }
                                                                 } else if (grade.point === -2 || numPoint === -2) {
                                                                     displayVal = 'X';
                                                                     bg = 'rgba(156, 39, 176, 0.15)';
-                                                                    fg = '#ab47bc';
+                                                                    fg = '#9333ea';
                                                                 } else if (grade.point === -3 || numPoint === -3) {
                                                                     displayVal = 'ჩთ';
                                                                     bg = 'rgba(33, 150, 243, 0.15)';
-                                                                    fg = '#2196f3';
+                                                                    fg = '#2563eb';
                                                                 } else {
                                                                     const numVal = numPoint !== null ? numPoint : (typeof grade.point === 'number' ? grade.point : 0);
                                                                     displayVal = String(numVal > 0 ? numVal : grade.point);
-                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#4caf50'; }
-                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#ff9800'; }
-                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2196f3'; }
-                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#f44336'; }
+                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#16a34a'; }
+                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#d97706'; }
+                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2563eb'; }
+                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#dc2626'; }
                                                                 }
 
                                                                 const typeLabel = isFormative ? 'განმავითარებელი' : (grade.pointType === 1 ? 'საშინაო' : grade.pointType === 2 ? 'საკლასო' : grade.pointType === 3 ? 'შემაჯამებელი' : grade.pointType === 4 ? 'ექსტერნი' : 'უცნობი');
                                                                 const displayStr = String(displayVal);
 
                                                                 return (
-                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.25)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.04)'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
+                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: '#f8fafc', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid #e2e8f0'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                                 <div style={{
@@ -477,24 +477,24 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                                 <span style={{
                                                                                     fontSize: '11px',
                                                                                     fontWeight: '700',
-                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.06)'))),
-                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 2 ? '#fbbf24' : (grade.pointType === 1 ? '#60a5fa' : '#cbd5e1'))),
+                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.15)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.15)' : '#e2e8f0'))),
+                                                                                    color: isFormative ? '#d97706' : (grade.pointType === 3 ? '#dc2626' : (grade.pointType === 2 ? '#d97706' : (grade.pointType === 1 ? '#2563eb' : '#475569'))),
                                                                                     padding: '3px 8px',
                                                                                     borderRadius: '10px'
                                                                                 }}>
                                                                                     {typeLabel}
                                                                                 </span>
                                                                             </div>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#94a3b8' }}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
                                                                                 <CalendarOutlineIcon size={14} />
                                                                                 <span>{grade.date}</span>
                                                                             </div>
                                                                         </div>
                                                                         {(commentText || isFormative) && (
-                                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'rgba(245, 158, 11, 0.08)', borderLeft: '3px solid #f59e0b', padding: '8px 12px', borderRadius: '0 6px 6px 0', fontSize: '13px', color: '#fef3c7' }}>
-                                                                                <RegCommentIcon size={14} style={{ marginTop: '2px', flexShrink: 0, color: '#f59e0b' }} />
+                                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', borderLeft: '3px solid #f59e0b', padding: '8px 12px', borderRadius: '0 6px 6px 0', fontSize: '13px', color: '#92400e' }}>
+                                                                                <RegCommentIcon size={14} style={{ marginTop: '2px', flexShrink: 0, color: '#d97706' }} />
                                                                                 <span>
-                                                                                    <strong style={{ color: '#fbbf24' }}>განმავითარებელი შეფასება: </strong>
+                                                                                    <strong style={{ color: '#b45309' }}>განმავითარებელი შეფასება: </strong>
                                                                                     <span style={{ fontStyle: 'italic' }}>{commentText || 'განმავითარებელი შეფასება'}</span>
                                                                                 </span>
                                                                             </div>
@@ -513,7 +513,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     </h5>
                                                     
                                                     {sem2Grades.length === 0 ? (
-                                                        <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontStyle: 'italic' }}>
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
                                                             ნიშნები არ ფიქსირდება
                                                         </div>
                                                     ) : (
@@ -525,46 +525,46 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                 const isFormative = grade.is_formative || grade.point === 'განმავითარებელი' || (typeof grade.point === 'string' && numPoint === null && grade.point !== '-1' && grade.point !== '-2' && grade.point !== '-3');
                                                                 const commentText = grade.comment || (typeof grade.point === 'string' && numPoint === null && grade.point !== 'განმავითარებელი' ? grade.point : '');
 
-                                                                let bg = 'rgba(255,255,255,0.03)';
-                                                                let fg = 'white';
+                                                                let bg = '#f1f5f9';
+                                                                let fg = '#0f172a';
                                                                 let displayVal: any = '';
 
                                                                 if (isFormative) {
                                                                     displayVal = commentText || 'განმავითარებელი';
-                                                                    bg = 'rgba(245, 158, 11, 0.2)';
-                                                                    fg = '#f59e0b';
+                                                                    bg = 'rgba(245, 158, 11, 0.15)';
+                                                                    fg = '#d97706';
                                                                 } else if (grade.point === -1 || numPoint === -1) {
                                                                     if (grade.checked) {
                                                                         displayVal = '✓';
                                                                         bg = 'rgba(76, 175, 80, 0.15)';
-                                                                        fg = '#4caf50';
+                                                                        fg = '#16a34a';
                                                                     } else {
                                                                         displayVal = '✗';
                                                                         bg = 'rgba(244, 67, 54, 0.15)';
-                                                                        fg = '#f44336';
+                                                                        fg = '#dc2626';
                                                                     }
                                                                 } else if (grade.point === -2 || numPoint === -2) {
                                                                     displayVal = 'X';
                                                                     bg = 'rgba(156, 39, 176, 0.15)';
-                                                                    fg = '#ab47bc';
+                                                                    fg = '#9333ea';
                                                                 } else if (grade.point === -3 || numPoint === -3) {
                                                                     displayVal = 'ჩთ';
                                                                     bg = 'rgba(33, 150, 243, 0.15)';
-                                                                    fg = '#2196f3';
+                                                                    fg = '#2563eb';
                                                                 } else {
                                                                     const numVal = numPoint !== null ? numPoint : (typeof grade.point === 'number' ? grade.point : 0);
                                                                     displayVal = String(numVal > 0 ? numVal : grade.point);
-                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#4caf50'; }
-                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#ff9800'; }
-                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2196f3'; }
-                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#f44336'; }
+                                                                    if (numVal >= 9) { bg = 'rgba(76, 175, 80, 0.15)'; fg = '#16a34a'; }
+                                                                    else if (numVal >= 7) { bg = 'rgba(255, 152, 0, 0.15)'; fg = '#d97706'; }
+                                                                    else if (numVal >= 4) { bg = 'rgba(33, 150, 243, 0.15)'; fg = '#2563eb'; }
+                                                                    else if (numVal > 0) { bg = 'rgba(244, 67, 54, 0.15)'; fg = '#dc2626'; }
                                                                 }
 
                                                                 const typeLabel = isFormative ? 'განმავითარებელი' : (grade.pointType === 1 ? 'საშინაო' : grade.pointType === 2 ? 'საკლასო' : grade.pointType === 3 ? 'შემაჯამებელი' : grade.pointType === 4 ? 'ექსტერნი' : 'უცნობი');
                                                                 const displayStr = String(displayVal);
 
                                                                 return (
-                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.01)', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.25)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.04)'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
+                                                                    <div key={grade._id} style={{ display: 'flex', flexDirection: 'column', background: '#f8fafc', border: grade.pointType === 3 ? '1px solid rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid #e2e8f0'), borderRadius: '12px', padding: '12px 16px', gap: '8px' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                                 <div style={{
@@ -586,24 +586,24 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                                                 <span style={{
                                                                                     fontSize: '11px',
                                                                                     fontWeight: '700',
-                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.3)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.25)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.06)'))),
-                                                                                    color: isFormative ? '#f59e0b' : (grade.pointType === 3 ? '#ef4444' : (grade.pointType === 2 ? '#fbbf24' : (grade.pointType === 1 ? '#60a5fa' : '#cbd5e1'))),
+                                                                                    background: isFormative ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 3 ? 'rgba(239, 68, 68, 0.15)' : (grade.pointType === 2 ? 'rgba(245, 158, 11, 0.15)' : (grade.pointType === 1 ? 'rgba(59, 130, 246, 0.15)' : '#e2e8f0'))),
+                                                                                    color: isFormative ? '#d97706' : (grade.pointType === 3 ? '#dc2626' : (grade.pointType === 2 ? '#d97706' : (grade.pointType === 1 ? '#2563eb' : '#475569'))),
                                                                                     padding: '3px 8px',
                                                                                     borderRadius: '10px'
                                                                                 }}>
                                                                                     {typeLabel}
                                                                                 </span>
                                                                             </div>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#94a3b8' }}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
                                                                                 <CalendarOutlineIcon size={14} />
                                                                                 <span>{grade.date}</span>
                                                                             </div>
                                                                         </div>
                                                                         {(commentText || isFormative) && (
-                                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'rgba(245, 158, 11, 0.08)', borderLeft: '3px solid #f59e0b', padding: '8px 12px', borderRadius: '0 6px 6px 0', fontSize: '13px', color: '#fef3c7' }}>
-                                                                                <RegCommentIcon size={14} style={{ marginTop: '2px', flexShrink: 0, color: '#f59e0b' }} />
+                                                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', borderLeft: '3px solid #f59e0b', padding: '8px 12px', borderRadius: '0 6px 6px 0', fontSize: '13px', color: '#92400e' }}>
+                                                                                <RegCommentIcon size={14} style={{ marginTop: '2px', flexShrink: 0, color: '#d97706' }} />
                                                                                 <span>
-                                                                                    <strong style={{ color: '#fbbf24' }}>განმავითარებელი შეფასება: </strong>
+                                                                                    <strong style={{ color: '#b45309' }}>განმავითარებელი შეფასება: </strong>
                                                                                     <span style={{ fontStyle: 'italic' }}>{commentText || 'განმავითარებელი შეფასება'}</span>
                                                                                 </span>
                                                                             </div>
@@ -625,7 +625,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                 </>
             )}
 
-            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px', marginTop: '30px', fontStyle: 'italic' }}>
+            <p style={{ textAlign: 'center', color: '#64748b', fontSize: '12px', marginTop: '30px', fontStyle: 'italic', fontWeight: '600' }}>
                 * თუ მოსწავლეს აქვს ექსტერნის ნიშანი, წლიური ნიშანი ჩაანაცვლება ექსტერნის ნიშნით
             </p>
         </div>

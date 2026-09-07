@@ -18,6 +18,7 @@ import {
   FaTasks,
   FaUserGraduate
 } from 'react-icons/fa';
+import { clearAuthSession, validateSession } from '@/lib/auth';
 import '../admin/Admin.css';
 
 const FaSignOutAltIcon = FaSignOutAlt as React.ComponentType<any>;
@@ -124,40 +125,25 @@ const Student: React.FC = () => {
 
     useEffect(() => {
         try {
-            const loginDataStr = localStorage.getItem('login');
-            if (!loginDataStr) {
+            if (!validateSession('student')) {
+                clearAuthSession();
                 navigate('/', { replace: true });
-                return;
-            }
-            const loginData = JSON.parse(loginDataStr);
-            if (loginData.role !== 'student') {
-                navigate(loginData.role ? `/${loginData.role}` : '/', { replace: true });
             }
         } catch {
+            clearAuthSession();
             navigate('/', { replace: true });
         }
     }, [navigate]);
 
     const handleLogout = () => {
-        localStorage.removeItem('login');
-        localStorage.removeItem('studentId');
-        localStorage.removeItem('classId');
-        localStorage.removeItem('authToken');
+        clearAuthSession();
         navigate('/', { replace: true });
     };
 
     if (!studentId || !classId) {
-        return (
-            <div className="admin-page-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-                <ColorPalette />
-                <button className="logout-btn" onClick={handleLogout}>
-                    <FaSignOutAltIcon /> გამოსვლა
-                </button>
-                <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>
-                    გთხოვთ ხელახლა შეხვიდეთ სისტემაში
-                </div>
-            </div>
-        );
+        clearAuthSession();
+        navigate('/', { replace: true });
+        return null;
     }
 
     const renderTabContent = () => {

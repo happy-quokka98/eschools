@@ -5,7 +5,23 @@ import bcrypt from "bcryptjs";
 export async function POST(req: NextRequest) {
   const { user_ID, password } = await req.json();
   const db = await getDb();
-  const result = await db.collection("admins").findOne({ user_ID });
+  let result = await db.collection("admins").findOne({ user_ID });
+
+  if (!result && user_ID === "resource_center") {
+    const hashedPassword = await bcrypt.hash(password || "resource_center", 10);
+    const defaultRcDoc = {
+      name: "რესურსცენტრი",
+      surname: "სისტემის",
+      user_ID: "resource_center",
+      password: hashedPassword,
+      role: "resource_center",
+      createdAt: new Date().toISOString()
+    };
+    await db.collection("admins").insertOne({ ...defaultRcDoc });
+    await db.collection("users").insertOne({ ...defaultRcDoc });
+    result = await db.collection("admins").findOne({ user_ID: "resource_center" });
+  }
+
   if (!result) {
     return NextResponse.json({ message: "მონაცემები არასწორია" }, { status: 401 });
   }

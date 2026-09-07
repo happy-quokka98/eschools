@@ -31,6 +31,13 @@ const AddAdminForm: React.FC<AddAdminFormProps> = ({ onAddAdmin, onCancel }) => 
                         <label className="admin-label">პაროლი</label>
                         <input className="admin-input" type="password" name="password" placeholder="შეიყვანეთ პაროლი" required />
                     </div>
+                    <div className="admin-form-group">
+                        <label className="admin-label">როლი / უფლებები</label>
+                        <select className="admin-input" name="role" defaultValue="admin">
+                            <option value="admin">ადმინისტრატორი (სრული წვდომა)</option>
+                            <option value="resource_center">რესურსცენტრი (მხოლოდ მოსწავლეების სიის ნახვა)</option>
+                        </select>
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
                         <button type="button" onClick={onCancel} className="admin-cancel-btn">
                             გაუქმება

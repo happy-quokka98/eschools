@@ -14,6 +14,7 @@ import ColorPalette from "./../../components/ColorPalette";
 import { useNavigate, Routes, Route, useParams } from "react-router-dom"; // For navigation after logout and useParams
 import InfoModal from "../../components/InfoModal";
 import DetailedGradeHistory from "../../components/admin/DetailedGradeHistory";
+import { clearAuthSession, validateSession } from "@/lib/auth";
 import "../admin/Admin.css";
 
 const FaChalkboardTeacherIcon = FaChalkboardTeacher as React.ComponentType<{
@@ -423,23 +424,18 @@ const Teacher: React.FC = () => {
 
   useEffect(() => {
     try {
-      const loginDataStr = localStorage.getItem('login');
-      if (!loginDataStr) {
+      if (!validateSession('teacher')) {
+        clearAuthSession();
         navigate('/', { replace: true });
-        return;
-      }
-      const loginData = JSON.parse(loginDataStr);
-      if (loginData.role !== 'teacher') {
-        navigate(loginData.role ? `/${loginData.role}` : '/', { replace: true });
       }
     } catch {
+      clearAuthSession();
       navigate('/', { replace: true });
     }
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem('login');
-    localStorage.removeItem('authToken');
+    clearAuthSession();
     navigate('/', { replace: true });
   };
 

@@ -93,7 +93,7 @@ const AdminList: React.FC<AdminListProps> = ({
                                         fontSize: '12px',
                                         fontWeight: 'bold'
                                     }}>
-                                        {admin.role || 'admin'}
+                                        {admin.role === 'resource_center' ? 'რესურსცენტრი' : admin.role === 'superadmin' ? 'სუპერადმინი' : 'ადმინისტრატორი'}
                                     </span>
                                 </td>
                                 <td>

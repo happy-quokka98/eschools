@@ -29,7 +29,7 @@ interface Announcement {
   time: string;
 }
 
-const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentUser }) => {
+const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate, currentUser }) => {
   const { selectedColor } = useColor();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -37,6 +37,8 @@ const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentU
   const [content, setContent] = useState('');
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const canCreate = allowCreate !== undefined ? allowCreate : (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'teacher');
 
   // Fetch announcements
   const { data: announcements, isLoading, error } = useQuery<Announcement[]>({
@@ -144,7 +146,7 @@ const NoticeBoard: React.FC<NoticeBoardProps> = ({ allowCreate = false, currentU
       )}
 
       {/* Admin / Teacher post form */}
-      {allowCreate && (
+      {canCreate && (
         <div style={{ marginBottom: '30px' }}>
           <button
             onClick={() => setIsFormOpen(!isFormOpen)}

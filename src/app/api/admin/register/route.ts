@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, surname, user_ID, password, requesterId } = await req.json();
+    const { name, surname, user_ID, password, requesterId, role } = await req.json();
 
     if (!user_ID || !password || !name || !surname) {
       return NextResponse.json({ message: "ყველა ველის შევსება სავალდებულოა" }, { status: 400 });
@@ -29,12 +29,13 @@ export async function POST(req: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const assignedRole = role === "resource_center" ? "resource_center" : "admin";
     const adminDoc = {
       name,
       surname,
       user_ID,
       password: hashedPassword,
-      role: "admin",
+      role: assignedRole,
       createdAt: new Date().toISOString()
     };
 

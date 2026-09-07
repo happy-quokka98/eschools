@@ -41,6 +41,7 @@ import TopStudentsMonitor from '../../components/admin/TopStudentsMonitor';
 import HomeworkModule from '../../components/HomeworkModule';
 
 import { FaShieldAlt, FaAward, FaCheckDouble, FaTasks } from 'react-icons/fa';
+import { clearAuthSession, validateSession } from '@/lib/auth';
 import './Admin.css';
 
 const ArrowLeftIcon = FaArrowLeftLong as React.FC<{ size?: number | string }>;
@@ -499,25 +500,28 @@ const Admin: React.FC = () => {
     });
 
     const isSuperAdmin = currentUser?.role === 'superadmin' || currentUser?.user_ID === 'kakhi-kakhidze';
+    const isResourceCenter = currentUser?.role === 'resource_center';
 
-    const dashboardItems = [
-        ...(isSuperAdmin ? [{ icon: RiAdminFill, label: 'ადმინისტრატორები' }] : []),
-        { icon: FaUserGraduate, label: 'მოსწავლეები' },
-        { icon: FaChalkboardTeacher, label: 'მასწავლებლები' },
+    const dashboardItems = isResourceCenter
+        ? [{ icon: FaUserGraduate, label: 'მოსწავლეები' }]
+        : [
+            ...(isSuperAdmin ? [{ icon: RiAdminFill, label: 'ადმინისტრატორები' }] : []),
+            { icon: FaUserGraduate, label: 'მოსწავლეები' },
+            { icon: FaChalkboardTeacher, label: 'მასწავლებლები' },
 
-        { icon: IoSchoolSharp, label: 'კლასი' },
-        { icon: FaHistory, label: 'ისტორია' },
-        { icon: IoStatsChartSharp, label: 'სტატისტიკა' },
-        { icon: FaBookReader, label: 'გამოცდები & ექსტერნატი' },
-        { icon: FaShieldAlt, label: 'მანდატურის დარღვევები' },
-        { icon: FaAward, label: 'წარჩინებულნი & მონიტორინგი' },
-        { icon: FaFileAlt, label: 'უწყისი' },
-        { icon: FaBookOpen, label: 'ჟურნალის გახსნა/დახურვა' },
-        { icon: FaCalendarAlt, label: 'გაკვეთილების კალენდარი' },
-        { icon: FaSearch, label: 'დღის სკანირება' },
-        { icon: FaBullhorn, label: 'განცხადებები' },
-        { icon: FaComments, label: 'ჩატი' },
-    ];
+            { icon: IoSchoolSharp, label: 'კლასი' },
+            { icon: FaHistory, label: 'ისტორია' },
+            { icon: IoStatsChartSharp, label: 'სტატისტიკა' },
+            { icon: FaBookReader, label: 'გამოცდები & ექსტერნატი' },
+            { icon: FaShieldAlt, label: 'მანდატურის დარღვევები' },
+            { icon: FaAward, label: 'წარჩინებულნი & მონიტორინგი' },
+            { icon: FaFileAlt, label: 'უწყისი' },
+            { icon: FaBookOpen, label: 'ჟურნალის გახსნა/დახურვა' },
+            { icon: FaCalendarAlt, label: 'გაკვეთილების კალენდარი' },
+            { icon: FaSearch, label: 'დღის სკანირება' },
+            { icon: FaBullhorn, label: 'განცხადებები' },
+            { icon: FaComments, label: 'ჩატი' },
+        ];
 
     const adminItems: { icon: IconType; label: string }[] = [
         { icon: MdAdd, label: 'ადმინისტრატორის დამატება' },
@@ -531,10 +535,12 @@ const Admin: React.FC = () => {
         { icon: FaHistory, label: 'კლასების გადაწევა' },
     ];
 
-    const studentItems: { icon: IconType; label: string }[] = [
-        { icon: MdAdd, label: 'მოსწავლის დამატება' },
-        { icon: FaUserGraduate, label: 'მოსწავლეთა სია' },
-    ];
+    const studentItems: { icon: IconType; label: string }[] = isResourceCenter
+        ? [{ icon: FaUserGraduate, label: 'მოსწავლეთა სია' }]
+        : [
+            { icon: MdAdd, label: 'მოსწავლის დამატება' },
+            { icon: FaUserGraduate, label: 'მოსწავლეთა სია' },
+        ];
 
     const teacherItems: { icon: IconType; label: string }[] = [
         { icon: MdAdd, label: 'მასწავლებლის დამატება' },
@@ -543,18 +549,15 @@ const Admin: React.FC = () => {
 
     useEffect(() => {
         try {
-            const loginDataStr = localStorage.getItem('login');
-            if (!loginDataStr) {
+            if (!validateSession('admin')) {
+                clearAuthSession();
                 navigate('/', { replace: true });
                 return;
             }
-            const loginData = JSON.parse(loginDataStr);
-            if (loginData.role !== 'admin' && loginData.role !== 'superadmin') {
-                navigate(loginData.role ? `/${loginData.role}` : '/', { replace: true });
-                return;
-            }
+            const loginData = JSON.parse(localStorage.getItem('login') || '{}');
             setCurrentUser(loginData);
         } catch {
+            clearAuthSession();
             navigate('/', { replace: true });
         }
     }, [navigate]);
@@ -599,8 +602,7 @@ const Admin: React.FC = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('login');
-        localStorage.removeItem('authToken');
+        clearAuthSession();
         navigate('/', { replace: true });
     };
 
@@ -775,7 +777,14 @@ const Admin: React.FC = () => {
                 setView('adminList');
                 break;
             case 'მოსწავლეები':
-                setView('studentOptions');
+                if (isResourceCenter) {
+                    Promise.all([fetchAllClasses(), fetchStudents(null, null)]);
+                    setClassFilter(null);
+                    setParallelFilter(null);
+                    setView('studentList');
+                } else {
+                    setView('studentOptions');
+                }
                 break;
             case 'მასწავლებლები':
                 setView('teacherOptions');
@@ -858,6 +867,15 @@ const Admin: React.FC = () => {
     };
 
     const handleBackClick = () => {
+        if (isResourceCenter) {
+            if (view === 'studentCard') {
+                setSelectedStudentForCard(null);
+                setView('studentList');
+            } else {
+                setView('main');
+            }
+            return;
+        }
         if (view === 'journalOpen') {
             setView('main');
         } else if (view === 'adminOptions' || view === 'studentOptions' || view === 'teacherOptions' || view === 'classOptions' || view === 'addClassForm' || view === 'addSubjectForm' || view === 'editClass' || view === 'noticeBoard' || view === 'chat') {
@@ -1690,7 +1708,7 @@ const Admin: React.FC = () => {
             case 'classOptions':
                 return <AdminDashboard items={classItems} onCardClick={handleCardClick} boxWidth={boxWidth} selectedColor={selectedColor} BoxTitle={BoxTitle} onBackClick={handleBackClick} />;
             case 'studentList':
-                return <StudentList students={filteredStudents} onEditStudent={handleEditStudent} onDeleteStudent={handleDeleteStudent} onResetPassword={handleResetPassword} onBackClick={handleBackClick} onGradeClick={handleGradeClick} onParallelFilterClick={handleParallelClick} classFilter={classFilter} parallelFilter={parallelFilter} selectedColor={selectedColor} classes={classes} logoutButtonStyle={logoutButtonStyle} onViewStudentCard={handleViewStudentCard} />;
+                return <StudentList students={filteredStudents} onEditStudent={handleEditStudent} onDeleteStudent={handleDeleteStudent} onResetPassword={handleResetPassword} onBackClick={handleBackClick} onGradeClick={handleGradeClick} onParallelFilterClick={handleParallelClick} classFilter={classFilter} parallelFilter={parallelFilter} selectedColor={selectedColor} classes={classes} logoutButtonStyle={logoutButtonStyle} onViewStudentCard={handleViewStudentCard} isReadOnly={isResourceCenter} />;
             case 'addStudentForm':
                 return <AddStudentForm onAddStudent={handleAddStudent} onBackClick={() => setView('studentOptions')} classes={classes} selectedColor={selectedColor} logoutButtonStyle={logoutButtonStyle} />;
             case 'teacherList':
@@ -2122,12 +2140,13 @@ const Admin: React.FC = () => {
                     <div style={{ color: 'white', textAlign: 'center' }}>მოსწავლე ვერ მოიძებნა</div>
                 );
             case 'noticeBoard':
+                const currentAdminName = currentUser ? `${currentUser.name || ''} ${currentUser.surname || ''}`.trim() || 'ადმინისტრატორი' : 'ადმინისტრატორი';
                 return (
                     <div style={{ width: '100%', maxWidth: '1000px' }}>
                         <button className="admin-back-btn" onClick={handleBackClick} style={{ marginBottom: '24px' }}>
                             <ArrowLeftIcon size={20} /> უკან
                         </button>
-                        <NoticeBoard currentUser={{ id: 'admin', name: 'ადმინისტრატორი', role: 'admin' }} />
+                        <NoticeBoard allowCreate={!isResourceCenter} currentUser={{ id: currentUser?.user_ID || 'admin', name: currentAdminName, role: currentUser?.role || 'admin' }} />
                     </div>
                 );
             case 'examsManager':

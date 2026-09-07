@@ -9,6 +9,7 @@ import LoginModal from '../../components/LoginModal';
 // import RegisterModal from '../../components/RegisterModal';
 import InfoModal from '../../components/InfoModal';
 
+import { clearAuthSession, validateSession } from '@/lib/auth';
 import './StartPage.css';
 
 const roleMap: Record<string, string> = {
@@ -30,13 +31,16 @@ const StartPage: React.FC = () => {
         try {
             const loginDataStr = localStorage.getItem('login');
             if (loginDataStr) {
-                const loginData = JSON.parse(loginDataStr);
-                if (loginData?.role) {
+                if (validateSession()) {
+                    const loginData = JSON.parse(loginDataStr);
                     navigate(`/${loginData.role}`, { replace: true });
+                } else {
+                    clearAuthSession();
                 }
             }
         } catch (e) {
             console.error(e);
+            clearAuthSession();
         }
 
         return () => {
@@ -69,6 +73,7 @@ const StartPage: React.FC = () => {
                 const data = await res.json();
                 setLoginOpen(false);
                 
+                clearAuthSession();
                 localStorage.setItem('login', JSON.stringify({ role: data.role || role, user_ID, loginTime: Date.now() }));
                 
                 if (role === 'student' && data.user_ID && data.class_id) {
