@@ -347,7 +347,7 @@ const Teacher: React.FC = () => {
       // Fetch teacher schedule
       setScheduleLoading(true);
       const scheduleRes = await fetch(
-        `/api/teacher/schedule?user_ID=${user_ID}`,
+        `/api/teacher/schedule?user_ID=${encodeURIComponent(user_ID)}&teacher_id=${encodeURIComponent(teacherId || "")}`,
       );
       if (scheduleRes.ok) {
         const sched = await scheduleRes.json();
@@ -529,8 +529,11 @@ const Teacher: React.FC = () => {
                   className={`schedule-lesson-card ${slot ? 'active' : ''}`}
                 >
                   {slot ? (
-                    <div className="schedule-subject-name">
-                      {slot.className}
+                    <div className="schedule-subject-name" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontWeight: 900, fontSize: '15px', color: '#0f172a' }}>{slot.className}</span>
+                      {slot.subjectName && (
+                        <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '700' }}>{slot.subjectName}</span>
+                      )}
                     </div>
                   ) : (
                     <span className="schedule-empty">---</span>
@@ -736,6 +739,17 @@ const Teacher: React.FC = () => {
   // Grade entry page
   const GradeEntryPage: React.FC = () => {
     const { id } = useParams();
+    const { data: classExams } = useQuery<any[]>({
+      queryKey: ['class-scheduled-exams-entry', id],
+      queryFn: async () => {
+        if (!id) return [];
+        const res = await fetch(`/api/exams?class_id=${id}`);
+        if (!res.ok) return [];
+        return res.json();
+      },
+      enabled: !!id,
+      refetchInterval: 10000
+    });
     const [students, setStudents] = useState<any[]>([]);
     const [gradeType, setGradeType] = useState("საკლასო");
     const [grades, setGrades] = useState<{
@@ -1224,6 +1238,32 @@ const Teacher: React.FC = () => {
             })()}
           </div>
         </div>
+
+        {id && classExams && classExams.length > 0 && (
+          <div style={{
+            margin: '0 0 24px 0',
+            padding: '16px 20px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(245, 158, 11, 0.12))',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#f87171',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ fontWeight: 800, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📌 ამ კლასს ჩანიშნული აქვს გამოცდა:</span>
+            </div>
+            {classExams.map((ex: any) => (
+              <div key={ex._id} style={{ fontSize: '13px', display: 'flex', flexWrap: 'wrap', gap: '14px', opacity: 0.95, fontWeight: 600 }}>
+                <span><strong>თარიღი:</strong> {ex.date} ({ex.time || '10:00'})</span>
+                <span><strong>დასახელება:</strong> {ex.title}</span>
+                {ex.subjectName && <span><strong>საგანი:</strong> {ex.subjectName}</span>}
+                {ex.location && <span><strong>ოთახი:</strong> {ex.location}</span>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {selectedSubject &&
           allowedDays.length > 0 &&

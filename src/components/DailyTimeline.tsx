@@ -116,6 +116,18 @@ const DailyTimeline: React.FC<DailyTimelineProps> = ({ classId }) => {
     refetchInterval: 10000
   });
 
+  const { data: classExams } = useQuery<any[]>({
+    queryKey: ['class-scheduled-exams-timeline', classId],
+    queryFn: async () => {
+      if (!classId) return [];
+      const res = await fetch(`/api/exams?class_id=${classId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!classId,
+    refetchInterval: 10000
+  });
+
   const classData = classesList?.find(c => c._id === classId);
   const isLoading = loadingClasses || loadingSubjects || loadingTeachers || loadingEvents;
 
@@ -253,6 +265,33 @@ const DailyTimeline: React.FC<DailyTimelineProps> = ({ classId }) => {
             <div style={{ fontSize: '14px', opacity: 0.9 }}>
               გაკვეთილები ჩატარდება <strong>{daysGeorgian[currentEvent.replacementDayOfWeek ?? 0]}ს</strong> ცხრილით.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scheduled Exams Banner */}
+      {classExams && classExams.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%)',
+          border: '1.5px solid #fca5a5',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          color: '#991b1b',
+          boxShadow: '0 4px 20px rgba(239, 68, 68, 0.08)'
+        }}>
+          <div style={{ fontWeight: 800, fontSize: '15px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>📝 ჩასმული გამოცდების განრიგი:</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {classExams.map((ex: any) => (
+              <div key={ex._id} style={{ fontSize: '13px', display: 'flex', flexWrap: 'wrap', gap: '12px', fontWeight: 600 }}>
+                <span><strong>თარიღი:</strong> {ex.date} ({ex.time || '10:00'})</span>
+                <span><strong>დასახელება:</strong> {ex.title}</span>
+                {ex.subjectName && <span><strong>საგანი:</strong> {ex.subjectName}</span>}
+                {ex.location && <span><strong>ოთახი:</strong> {ex.location}</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}

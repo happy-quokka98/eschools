@@ -120,10 +120,19 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
           const data = await res.json();
           const found = data.find((cls: any) => cls._id === selectedClassId);
           if (found && found.calendar && Array.isArray(found.calendar) && found.calendar.length === 5) {
-            setCalendar(found.calendar.map((day: any) => Array.isArray(day) ? day.map((cell: any) => ({
-              subject_id: cell.subject_id || '',
-              teacher_id: cell.teacher_id || ''
-            })) : Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
+            setCalendar(found.calendar.map((day: any) => Array.isArray(day) ? day.map((cell: any) => {
+              let teacherId = cell.teacher_id ? String(cell.teacher_id) : '';
+              if (!teacherId && cell.subject_id && Array.isArray(found.subjects)) {
+                const autoMatch = found.subjects.find((s: any) => String(s.subject_id) === String(cell.subject_id));
+                if (autoMatch && autoMatch.teacher_id) {
+                  teacherId = String(autoMatch.teacher_id);
+                }
+              }
+              return {
+                subject_id: cell.subject_id ? String(cell.subject_id) : '',
+                teacher_id: teacherId
+              };
+            }) : Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
           } else {
             setCalendar(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
           }
@@ -327,9 +336,11 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                           {days.map((_, dayIdx) => {
                             const cellSubjectId = calendar[dayIdx][lessonIdx]?.subject_id;
                             const allowedTeacherIds = currentClassObj?.subjects
-                              ?.filter(s => s.subject_id.toString() === cellSubjectId?.toString())
-                              .map(s => s.teacher_id.toString()) || [];
-                            const filteredClassTeachers = teachers.filter(t => allowedTeacherIds.includes(t._id.toString()));
+                              ?.filter(s => String(s.subject_id) === String(cellSubjectId))
+                              .map(s => String(s.teacher_id)) || [];
+                            const filteredClassTeachers = teachers.filter(t =>
+                              allowedTeacherIds.includes(String(t._id)) || (t.user_ID && allowedTeacherIds.includes(String(t.user_ID)))
+                            );
 
                             return (
                               <td key={dayIdx} style={{ minWidth: '180px', padding: '8px' }}>
@@ -338,8 +349,16 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                                     className="calendar-select"
                                     value={calendar[dayIdx][lessonIdx]?.subject_id || ''}
                                     onChange={e => {
-                                      handleCellChange(dayIdx, lessonIdx, 'subject_id', e.target.value);
-                                      handleCellChange(dayIdx, lessonIdx, 'teacher_id', '');
+                                      const newSubjId = e.target.value;
+                                      let autoTeacher = '';
+                                      if (newSubjId && currentClassObj?.subjects) {
+                                        const match = currentClassObj.subjects.find(s => String(s.subject_id) === String(newSubjId));
+                                        if (match && match.teacher_id) {
+                                          autoTeacher = String(match.teacher_id);
+                                        }
+                                      }
+                                      handleCellChange(dayIdx, lessonIdx, 'subject_id', newSubjId);
+                                      handleCellChange(dayIdx, lessonIdx, 'teacher_id', autoTeacher);
                                     }}
                                   >
                                     <option value=''>საგანი</option>

@@ -8,14 +8,44 @@ export async function GET(req: NextRequest) {
     const db = client.db("eschools");
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get("class_id");
+    const subjectId = searchParams.get("subject_id");
     const type = searchParams.get("type");
 
     let query: any = {};
-    if (classId) query.class_id = classId;
+    if (classId) {
+      if (classId.includes(",")) {
+        query.class_id = { $in: classId.split(",").map((s) => s.trim()) };
+      } else {
+        query.class_id = classId;
+      }
+    }
+    if (subjectId) query.subject_id = subjectId;
     if (type) query.type = type;
 
     const exams = await db.collection("exams").find(query).sort({ date: 1 }).toArray();
-    return NextResponse.json(exams);
+
+    // Attach className and subjectName for UI display
+    const classes = await db.collection("class").find({}).toArray();
+    const subjects = await db.collection("subjects").find({}).toArray();
+
+    const classMap: Record<string, string> = {};
+    for (const c of classes) {
+      classMap[c._id.toString()] = c.classname || c.ID || "";
+    }
+
+    const subjectMap: Record<string, string> = {};
+    for (const s of subjects) {
+      subjectMap[s._id.toString()] = s.name || "";
+    }
+
+    const enrichedExams = exams.map((ex: any) => ({
+      ...ex,
+      _id: ex._id.toString(),
+      className: classMap[ex.class_id] || ex.className || "",
+      subjectName: subjectMap[ex.subject_id] || ex.subjectName || "",
+    }));
+
+    return NextResponse.json(enrichedExams);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

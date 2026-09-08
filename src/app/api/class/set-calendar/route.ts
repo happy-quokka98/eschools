@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { invalidateCache } from "@/lib/cache";
 
 export async function POST(req: NextRequest) {
   const { class_id, calendar } = await req.json();
@@ -19,19 +20,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Normalize ObjectIDs in calendar entries
-  for (let d = 0; d < calendar.length; d++) {
-    for (let l = 0; l < calendar[d].length; l++) {
-      const entry = calendar[d][l];
-      if (entry.teacher_id && ObjectId.isValid(entry.teacher_id)) {
-        calendar[d][l].teacher_id = new ObjectId(entry.teacher_id);
-      }
-      if (entry.subject_id && ObjectId.isValid(entry.subject_id)) {
-        calendar[d][l].subject_id = new ObjectId(entry.subject_id);
-      }
-    }
-  }
-
   const db = await getDb();
   const objID = new ObjectId(class_id);
 
@@ -39,6 +27,27 @@ export async function POST(req: NextRequest) {
   const oldClass = await db.collection("class").findOne({ _id: objID });
   if (!oldClass) {
     return NextResponse.json({ message: "კლასი ვერ მოიძებნა" }, { status: 404 });
+  }
+
+  // Normalize ObjectIDs & Auto-fill missing teacher_id from class subjects
+  for (let d = 0; d < calendar.length; d++) {
+    for (let l = 0; l < calendar[d].length; l++) {
+      const entry = calendar[d][l];
+      if (entry && entry.subject_id && (!entry.teacher_id || entry.teacher_id === "" || entry.teacher_id.toString() === "000000000000000000000000")) {
+        if (oldClass.subjects && Array.isArray(oldClass.subjects)) {
+          const matchSubj = oldClass.subjects.find((s: any) => s.subject_id && s.subject_id.toString() === entry.subject_id.toString());
+          if (matchSubj && matchSubj.teacher_id) {
+            calendar[d][l].teacher_id = matchSubj.teacher_id;
+          }
+        }
+      }
+      if (calendar[d][l].teacher_id && ObjectId.isValid(calendar[d][l].teacher_id)) {
+        calendar[d][l].teacher_id = new ObjectId(calendar[d][l].teacher_id);
+      }
+      if (calendar[d][l].subject_id && ObjectId.isValid(calendar[d][l].subject_id)) {
+        calendar[d][l].subject_id = new ObjectId(calendar[d][l].subject_id);
+      }
+    }
   }
 
   const result = await db.collection("class").updateOne(
@@ -138,5 +147,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  invalidateCache("all_classes_formatted");
   return NextResponse.json({ message: "კალენდარი წარმატებით განახლდა" });
 }
