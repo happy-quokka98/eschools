@@ -1089,7 +1089,6 @@ const Admin: React.FC = () => {
             });
             if (res.ok) {
                 showPopup('კლასი წარმატებით განახლდა.', 'success');
-                setView('main');
                 fetchAllClasses();
             } else {
                 const resBody = await res.text();
@@ -1718,7 +1717,7 @@ const Admin: React.FC = () => {
             case 'addClassForm':
                 return <AddClassForm onAddClass={handleAddClass} onCancel={() => setView('classOptions')} />;
             case 'addSubjectForm':
-                return <AddSubjectForm onAddSubject={handleAddSubject} onCancel={() => setView('classOptions')} subjects={(subjects || []).map(s => s.name)} subjectsList={subjects || []} onSubjectUpdated={fetchAllSubjects} />;
+                return <AddSubjectForm onAddSubject={handleAddSubject} onCancel={() => setView('classOptions')} subjects={(subjects || []).map(s => s.name)} subjectsList={subjects || []} classes={classes || []} onSubjectUpdated={() => { fetchAllSubjects(); fetchAllClasses(); }} />;
             case 'editClass':
                 return <EditClassForm onUpdateClass={handleUpdateClass} onCancel={() => setView('classOptions')} classes={classes} teachers={teachers} subjects={subjects} onSubjectUpdated={fetchAllSubjects} />;
             case 'classHistoryGrades':

@@ -43,8 +43,13 @@ const TeacherList: React.FC<TeacherListProps> = ({
         const name = (teacher.name || '').toLowerCase();
         const surname = (teacher.surname || '').toLowerCase();
         const fullName = `${name} ${surname}`;
+        const fullNameRev = `${surname} ${name}`;
         const id = (teacher.ID || teacher.user_ID || '').toLowerCase();
-        return fullName.includes(query) || name.includes(query) || surname.includes(query) || id.includes(query);
+
+        if (fullName.includes(query) || fullNameRev.includes(query) || id.includes(query)) return true;
+
+        const parts = query.split(/\s+/);
+        return parts.every(part => name.includes(part) || surname.includes(part) || id.includes(part));
     });
 
     return (
@@ -92,7 +97,7 @@ const TeacherList: React.FC<TeacherListProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {teachers.length > 0 ? teachers.map((teacher) => (
+                        {filteredTeachers.length > 0 ? filteredTeachers.map((teacher) => (
                             <tr key={teacher._id}>
                                 <td>{teacher.name}</td>
                                 <td>{teacher.surname}</td>

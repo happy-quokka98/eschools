@@ -322,17 +322,23 @@ const Teacher: React.FC = () => {
       setAllSubjects(subjects);
       // Tutor classes
       const tutor = allClasses.filter((cls: any) => cls.damrigebeli === teacherId);
-      // Teaches classes (any subject)
+      // Teaches classes (any subject with hours_per_week > 0)
       const teaches = allClasses
         .filter(
           (cls: any) =>
             Array.isArray(cls.subjects) &&
-            cls.subjects.some((subj: any) => subj.teacher_id === teacherId),
+            cls.subjects.some((subj: any) => 
+              subj.teacher_id === teacherId && 
+              (subj.hours_per_week === undefined || subj.hours_per_week > 0)
+            ),
         )
         .map((cls: any) => {
           // Find subjects this teacher teaches in this class
           const teacherSubjects = (cls.subjects || [])
-            .filter((subj: any) => subj.teacher_id === teacherId)
+            .filter((subj: any) => 
+              subj.teacher_id === teacherId && 
+              (subj.hours_per_week === undefined || subj.hours_per_week > 0)
+            )
             .map((subj: any) => {
               const subjObj = subjects.find(
                 (s: any) => s._id === subj.subject_id,
@@ -341,7 +347,8 @@ const Teacher: React.FC = () => {
             })
             .filter((name: string) => !!name);
           return { ...cls, teacherSubjects };
-        });
+        })
+        .filter((cls: any) => cls.teacherSubjects && cls.teacherSubjects.length > 0);
       setTutorClasses(tutor);
       setTeachesClasses(teaches);
       // Fetch teacher schedule
@@ -1101,7 +1108,9 @@ const Teacher: React.FC = () => {
       const teacher = allTeachers.find((t: any) => t.user_ID === user_ID);
       if (teacher) {
         teacherSubjects = classObj.subjects.filter(
-          (subj: any) => subj.teacher_id === teacher._id,
+          (subj: any) => 
+            subj.teacher_id === teacher._id && 
+            (subj.hours_per_week === undefined || subj.hours_per_week > 0),
         );
       }
     }
@@ -1526,7 +1535,9 @@ const Teacher: React.FC = () => {
       const teacher = allTeachers.find((t: any) => t.user_ID === user_ID);
       if (teacher) {
         teacherSubjects = classObj.subjects.filter(
-          (subj: any) => subj.teacher_id === teacher._id,
+          (subj: any) => 
+            subj.teacher_id === teacher._id && 
+            (subj.hours_per_week === undefined || subj.hours_per_week > 0),
         );
       }
     }

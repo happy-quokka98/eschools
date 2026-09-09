@@ -55,11 +55,12 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
     const gradeInfo = getGradeInfo(student.classInfo?.classname);
 
-    // Dynamic year selector tabs definition
-    const yearsTabs = Array.from({ length: 3 }).map((_, index) => {
+    // Dynamic year selector tabs definition (supporting current and previous years up to 6 years)
+    const yearsTabs = Array.from({ length: Math.min(6, Math.max(1, gradeInfo.num || 4)) }).map((_, index) => {
         const yearOffset = index;
         const startYr = baseStartYear - yearOffset;
         const endYr = startYr + 1;
+        const fullAcademicYear = `${startYr}-${endYr}`;
         const startYearShort = String(startYr).slice(-2);
         const endYearShort = String(endYr).slice(-2);
         const academicYear = `${startYearShort}${endYearShort}year`;
@@ -74,10 +75,14 @@ const StudentCard: React.FC<StudentCardProps> = ({
             }
         }
 
+        let label = `${fullAcademicYear} (${displayClass})`;
+        if (index === 0) label = `${fullAcademicYear} (${displayClass}) — მიმდინარე`;
+
         return {
             index,
-            label: index === 0 ? `მიმდინარე (${displayClass})` : (index === 1 ? `წინა (${displayClass})` : `წინას წინა (${displayClass})`),
+            label,
             academicYear,
+            fullAcademicYear,
             className: displayClass
         };
     });
@@ -87,11 +92,19 @@ const StudentCard: React.FC<StudentCardProps> = ({
             setLoading(true);
             try {
                 if (student.classInfo?._id && studentIdToUse) {
-                    const yearParam = selectedYearIdx === 0 ? '' : `&year=${yearsTabs[selectedYearIdx]?.academicYear || ''}`;
+                    const targetYear = yearsTabs[selectedYearIdx]?.academicYear || '';
+                    const yearParam = targetYear ? `&year=${encodeURIComponent(targetYear)}` : '';
                     const res = await fetch(`/api/student/subjects-grades?student_id=${studentIdToUse}&class_id=${student.classInfo._id}${yearParam}`);
                     if (res.ok) {
                         const data = await res.json();
                         setCurrentYearData(data);
+
+                        // If 2026-2027 has no grades yet, auto-select previous year (e.g. 2025-2026) so user sees actual grades
+                        if (selectedYearIdx === 0 && (!data.subjects || data.subjects.length === 0 || data.overall?.annual_average === 0)) {
+                            if (yearsTabs.length > 1) {
+                                setSelectedYearIdx(1);
+                            }
+                        }
                     }
                 }
             } catch (error) {
@@ -340,9 +353,14 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
                     {/* Expandable Grade Logs grouped by Subjects and Semesters */}
                     <div className="admin-list-container animate-fade-in-down" style={{ padding: '30px', animationDelay: '0.15s', background: '#ffffff' }}>
-                        <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '20px', marginBottom: '22px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', color: '#0f172a' }}>
-                            ნიშნების დეტალური ისტორია საგნების მიხედვით
-                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '22px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+                            <h3 className="admin-form-title" style={{ textAlign: 'left', fontSize: '20px', margin: 0, color: '#0f172a' }}>
+                                📋 ნიშნების დეტალური ისტორია საგნების მიხედვით
+                            </h3>
+                            <span style={{ fontSize: '13px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '6px 14px', borderRadius: '12px', fontWeight: '800' }}>
+                                📅 {activeTabObj.fullAcademicYear} სასწავლო წელი ({activeTabObj.className} კლასი)
+                            </span>
+                        </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             {subjectsList.map((subject: any) => {
@@ -385,7 +403,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                     {subject.name || subject.subject_name}
                                                 </h4>
                                                 <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'inline-block', fontWeight: '600' }}>
-                                                    მასწავლებელი: {subject.teacher_name} • სულ {actualGrades.length} ნიშანი
+                                                    მასწავლებელი: {subject.teacher_name} • სულ {actualGrades.length} ნიშანი ({activeTabObj.fullAcademicYear})
                                                 </span>
                                             </div>
                                             <div style={{ color: '#0f172a' }}>
@@ -399,9 +417,14 @@ const StudentCard: React.FC<StudentCardProps> = ({
                                                 
                                                 {/* Semester 1 Grades */}
                                                 <div>
-                                                    <h5 style={{ margin: '0 0 14px 0', fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', color: '#2196f3', letterSpacing: '1px', borderLeft: '3px solid #2196f3', paddingLeft: '8px' }}>
-                                                        I სემესტრი
-                                                    </h5>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderLeft: '4px solid #2196f3', paddingLeft: '10px' }}>
+                                                        <h5 style={{ margin: 0, fontSize: '14px', fontWeight: '800', textTransform: 'uppercase', color: '#1e40af', letterSpacing: '0.5px' }}>
+                                                            I სემესტრი — {activeTabObj.fullAcademicYear} სასწავლო წელი ({activeTabObj.className} კლასი)
+                                                        </h5>
+                                                        <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb', background: '#eff6ff', padding: '4px 10px', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                                                            საშუალო: {displayGrade(subject.first_semester_average)}
+                                                        </span>
+                                                    </div>
                                                     
                                                     {sem1Grades.length === 0 ? (
                                                         <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
@@ -508,9 +531,14 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
                                                 {/* Semester 2 Grades */}
                                                 <div>
-                                                    <h5 style={{ margin: '0 0 14px 0', fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', color: '#4caf50', letterSpacing: '1px', borderLeft: '3px solid #4caf50', paddingLeft: '8px' }}>
-                                                        II სემესტრი
-                                                    </h5>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderLeft: '4px solid #16a34a', paddingLeft: '10px' }}>
+                                                        <h5 style={{ margin: 0, fontSize: '14px', fontWeight: '800', textTransform: 'uppercase', color: '#14532d', letterSpacing: '0.5px' }}>
+                                                            II სემესტრი — {activeTabObj.fullAcademicYear} სასწავლო წელი ({activeTabObj.className} კლასი)
+                                                        </h5>
+                                                        <span style={{ fontSize: '12px', fontWeight: '800', color: '#16a34a', background: '#f0fdf4', padding: '4px 10px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                                                            საშუალო: {displayGrade(subject.second_semester_average)}
+                                                        </span>
+                                                    </div>
                                                     
                                                     {sem2Grades.length === 0 ? (
                                                         <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>

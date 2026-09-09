@@ -39,6 +39,7 @@ export interface Teacher {
   homeroom_class?: string;
   gradeEntryStartDate?: string;
   calendar?: CalendarEntry[][];
+  availability?: boolean[][]; // 5 days x 7 slots (true = available, false = busy)
 }
 
 export interface Admin {
@@ -52,6 +53,7 @@ export interface Admin {
 export interface ClassSubject {
   subject_id: ObjectId;
   teacher_id: ObjectId;
+  hours_per_week?: number;
 }
 
 export interface Class {

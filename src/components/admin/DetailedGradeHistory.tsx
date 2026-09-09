@@ -238,11 +238,8 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const yearToFetch = academicYearFilter !== 'all' ? academicYearFilter : (selectedYear || '');
-                let gradesUrl = `/api/grades?class_id=${classId}`;
-                if (yearToFetch) {
-                    gradesUrl += `&year=${encodeURIComponent(yearToFetch)}`;
-                }
+                // Fetch ALL grades for the class (without year restriction) to discover all academic years
+                const gradesUrl = `/api/grades?class_id=${classId}`;
 
                 const match = className.match(/^([0-9]+)([ა-ჰ])$/);
                 const studentsUrl = match
@@ -263,16 +260,30 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     subjectsRes.json()
                 ]);
 
-                setGrades(Array.isArray(gradesData) ? gradesData : []);
+                const fetchedGrades: Grade[] = Array.isArray(gradesData) ? gradesData : [];
+                setGrades(fetchedGrades);
+
+                // Auto select the latest academic year that actually HAS grades if current year has no grades
+                const yearsWithGrades = Array.from(
+                    new Set(fetchedGrades.map(g => getAcademicYearFromDate(g.date)).filter(Boolean) as string[])
+                ).sort().reverse();
+
+                if (yearsWithGrades.length > 0) {
+                    const currentYearGrades = fetchedGrades.filter(g => getAcademicYearFromDate(g.date) === currentAy);
+                    if (currentYearGrades.length === 0 && !selectedYear) {
+                        setAcademicYearFilter(yearsWithGrades[0]);
+                    }
+                }
+
                 let classStudents = Array.isArray(studentsData)
                     ? (match ? studentsData : studentsData.filter((s: any) => s.classInfo && s.classInfo._id === classId))
                     : [];
 
-                if (Array.isArray(gradesData) && Array.isArray(allStudentsData)) {
+                if (Array.isArray(fetchedGrades) && Array.isArray(allStudentsData)) {
                     const existingStudentIds = new Set(classStudents.map((s: any) => s._id ? s._id.toString() : ''));
                     const allStudentsMap = new Map(allStudentsData.map((s: any) => [s._id ? s._id.toString() : '', s]));
 
-                    gradesData.forEach((g: Grade) => {
+                    fetchedGrades.forEach((g: Grade) => {
                         if (g.student_id) {
                             const sidStr = g.student_id.toString();
                             if (!existingStudentIds.has(sidStr) && allStudentsMap.has(sidStr)) {
@@ -296,7 +307,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
             }
         };
         fetchData();
-    }, [classId, className, selectedYear, academicYearFilter]);
+    }, [classId, className]);
 
     if (loading) {
         return (
@@ -443,10 +454,7 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
             });
 
             if (res.ok) {
-                const yearToFetch = academicYearFilter !== 'all' ? academicYearFilter : (selectedYear || '');
-                let gradesUrl = `/api/grades?class_id=${classId}`;
-                if (yearToFetch) gradesUrl += `&year=${encodeURIComponent(yearToFetch)}`;
-                const gradesRes = await fetch(gradesUrl);
+                const gradesRes = await fetch(`/api/grades?class_id=${classId}`);
                 const gradesData = await gradesRes.json();
                 if (Array.isArray(gradesData)) setGrades(gradesData);
                 setEditModalOpen(false);

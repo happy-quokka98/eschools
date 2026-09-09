@@ -93,10 +93,20 @@ export async function GET(req: NextRequest) {
               s.teacher_id && (
                 teacherUserIDs.includes(s.teacher_id.toString()) ||
                 (teacherObjID && s.teacher_id.toString() === teacherObjID.toString())
-              )
+              ) && (s.hours_per_week === undefined || s.hours_per_week > 0)
             );
             if (matchInClassSubjs) {
               matches = true;
+            }
+          }
+
+          // If the matching subject in this class has 0 hours (not taught per ESG), exclude it
+          if (matches && entry.subject_id && classSubjects.length > 0) {
+            const zeroHourMatch = classSubjects.find((s: any) =>
+              s.subject_id && s.subject_id.toString() === entry.subject_id.toString() && s.hours_per_week === 0
+            );
+            if (zeroHourMatch) {
+              matches = false;
             }
           }
 

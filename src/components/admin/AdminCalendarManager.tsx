@@ -1,34 +1,26 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { IoArrowBack, IoCalendarOutline, IoTrashOutline, IoAddCircleOutline, IoAlertCircleOutline, IoCheckmarkCircleOutline, IoFilterOutline } from 'react-icons/io5';
+import { useColor } from '../ColorContext';
+import { IoArrowBack, IoCalendarOutline, IoTrashOutline, IoSaveOutline } from 'react-icons/io5';
 
-const ArrowLeftIcon = IoArrowBack as React.ComponentType<any>;
-const CalendarIcon = IoCalendarOutline as React.ComponentType<any>;
-const TrashIcon = IoTrashOutline as React.ComponentType<any>;
-const AddIcon = IoAddCircleOutline as React.ComponentType<any>;
-const FilterIcon = IoFilterOutline as React.ComponentType<any>;
+const ArrowLeftIcon = IoArrowBack as React.FC<{ size?: number | string }>;
+const CalendarIcon = IoCalendarOutline as React.FC<{ size?: number | string }>;
+const TrashIcon = IoTrashOutline as React.FC<{ size?: number | string }>;
+const SaveIcon = IoSaveOutline as React.FC<{ size?: number | string }>;
 
 interface Teacher {
   _id: string;
   name: string;
   surname: string;
-  user_ID: string;
-}
-
-interface Subject {
-  _id: string;
-  name: string;
+  user_ID?: string;
+  subjects?: string[];
+  availability?: boolean[][];
 }
 
 interface ClassSubject {
   subject_id: string;
   teacher_id: string;
-}
-
-interface Class {
-  _id: string;
-  classname: string;
-  subjects?: ClassSubject[];
+  hours_per_week?: number;
 }
 
 interface CalendarEntry {
@@ -38,13 +30,28 @@ interface CalendarEntry {
 
 type Calendar = CalendarEntry[][];
 
-export interface CalendarEventItem {
-  _id?: string;
-  date: string;
-  type: 'holiday' | 'makeup';
+interface Class {
+  _id: string;
+  classname: string;
+  name?: string;
+  grade?: number;
+  subjects?: ClassSubject[];
+  calendar?: Calendar;
+}
+
+interface Subject {
+  _id: string;
+  name: string;
+}
+
+interface CalendarEventItem {
+  _id: string;
+  event_date: string;
+  event_type: 'holiday' | 'makeup';
   title: string;
-  replacementDayOfWeek?: number;
-  academicYear?: string;
+  replacement_day_of_week?: number; // 1 = Monday .. 5 = Friday
+  academic_year?: string;
+  created_at?: string;
 }
 
 interface AdminCalendarManagerProps {
@@ -73,166 +80,404 @@ const availableAcademicYears = [
   '2027-2028',
 ];
 
-const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, classes, subjects, onBack, showPopup }) => {
-  const [activeTab, setActiveTab] = useState<'timetable' | 'events'>('timetable');
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const res = [...arr];
+  for (let i = res.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [res[i], res[j]] = [res[j], res[i]];
+  }
+  return res;
+};
+
+const getGradeNumber = (cls: any): number => {
+  if (!cls) return 0;
+  if (typeof cls.grade === 'number' && cls.grade >= 1 && cls.grade <= 12) return cls.grade;
+  const name = cls.classname || cls.name || '';
+  const match = name.match(/^([0-9]+)/);
+  if (match) return parseInt(match[1], 10);
+  const romanMap: { [k: string]: number } = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12 };
+  const romanMatch = name.match(/^(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)/i);
+  if (romanMatch) return romanMap[romanMatch[1].toUpperCase()] || 0;
+  return 0;
+};
+
+const NATIONAL_CURRICULUM_PRESETS: { [key: string]: { label: string; keywords: RegExp; hours: { [grade: number]: number } } } = {
+  georgian: {
+    label: 'ქართული ენა და ლიტერატურა',
+    keywords: /ქართული|ლიტერატურა/i,
+    hours: { 1: 8, 2: 7, 3: 6, 4: 6, 5: 5, 6: 5, 7: 4, 8: 5, 9: 5, 10: 5, 11: 5, 12: 5 }
+  },
+  math: {
+    label: 'მათემატიკა',
+    keywords: /მათემატიკა|ალგებრა|გეომეტრია/i,
+    hours: { 1: 6, 2: 5, 3: 5, 4: 5, 5: 5, 6: 4, 7: 5, 8: 5, 9: 5, 10: 5, 11: 5, 12: 5 }
+  },
+  foreign1: {
+    label: 'პირველი უცხოური ენა (ინგლისური)',
+    keywords: /ინგლისური|პირველი უცხოური|უცხო ენა/i,
+    hours: { 1: 0, 2: 2, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 2, 10: 3, 11: 2, 12: 2 }
+  },
+  foreign2: {
+    label: 'მეორე უცხოური ენა (რუსული / გერმანული / ფრანგული)',
+    keywords: /რუსული|გერმანული|ფრანგული|მეორე უცხოური/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  me_da_sazogadoeba: {
+    label: 'მე და საზოგადოება',
+    keywords: /მე და საზოგადოება/i,
+    hours: { 1: 0, 2: 0, 3: 2, 4: 2, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 }
+  },
+  chveni_saqartvelo: {
+    label: 'ჩვენი საქართველო',
+    keywords: /ჩვენი საქართველო/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 2, 6: 3, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 }
+  },
+  history_world: {
+    label: 'მსოფლიოს ისტორია',
+    keywords: /მსოფლიოს ისტორია|ისტორია/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1, 8: 2, 9: 3, 10: 0, 11: 2, 12: 2 }
+  },
+  history_geo: {
+    label: 'საქართველოს ისტორია',
+    keywords: /საქართველოს ისტორია/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2, 8: 0, 9: 0, 10: 3, 11: 2, 12: 2 }
+  },
+  geography: {
+    label: 'გეოგრაფია',
+    keywords: /გეოგრაფია/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  civics: {
+    label: 'მოქალაქეობა',
+    keywords: /მოქალაქეობა|სამოქალაქო/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  nature: {
+    label: 'ბუნებისმეტყველება',
+    keywords: /ბუნებისმეტყველება|ბუნება/i,
+    hours: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 }
+  },
+  biology: {
+    label: 'ბიოლოგია',
+    keywords: /ბიოლოგია/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  physics: {
+    label: 'ფიზიკა',
+    keywords: /ფიზიკა/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  chemistry: {
+    label: 'ქიმია',
+    keywords: /ქიმია/i,
+    hours: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  ict: {
+    label: 'კომპიუტერული ტექნოლოგიები (ისტ)',
+    keywords: /კომპიუტერული|ისტ|ტექნოლოგიები/i,
+    hours: { 1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 }
+  },
+  art: {
+    label: 'ხელოვნება (სახვითი)',
+    keywords: /ხელოვნება|სახვითი/i,
+    hours: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 1, 8: 1, 9: 1, 10: 1, 11: 0, 12: 0 }
+  },
+  music: {
+    label: 'მუსიკა',
+    keywords: /მუსიკა/i,
+    hours: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 1, 8: 1, 9: 1, 10: 1, 11: 0, 12: 0 }
+  },
+  sport: {
+    label: 'ფიზიკური აღზრდა და სპორტი',
+    keywords: /სპორტი|ფიზიკური/i,
+    hours: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  chess: {
+    label: 'ჭადრაკი',
+    keywords: /ჭადრაკი/i,
+    hours: { 1: 1, 2: 1, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 }
+  }
+};
+
+const resolveSubjectHoursForClass = (s: any, cls: any, subjects: Subject[]): number => {
+  if (typeof s.hours_per_week === 'number' && s.hours_per_week > 0) {
+    return s.hours_per_week;
+  }
+
+  const gradeNum = getGradeNumber(cls);
+  const subjObj = subjects.find(sub => String(sub._id) === String(s.subject_id));
+  const subjName = subjObj?.name || '';
+
+  if (subjName && gradeNum > 0) {
+    for (const presetKey of Object.keys(NATIONAL_CURRICULUM_PRESETS)) {
+      const preset = NATIONAL_CURRICULUM_PRESETS[presetKey];
+      if (preset.keywords.test(subjName)) {
+        const presetHrs = preset.hours[gradeNum];
+        if (typeof presetHrs === 'number' && presetHrs > 0) {
+          return presetHrs;
+        }
+      }
+    }
+  }
+
+  return 2;
+};
+
+const normTeacherId = (tid: any, allTeachers: Teacher[]): string => {
+  if (!tid) return '';
+  const s = String(tid);
+  if (s === "000000000000000000000000") return '';
+  const found = allTeachers.find(t => String(t._id) === s || (t.user_ID && String(t.user_ID) === s));
+  return found ? String(found._id) : s;
+};
+
+const getEffectiveSubjectsForClass = (
+  cls: any,
+  globalSubjects: Subject[],
+  allTeachers: Teacher[]
+): { subject_id: string; teacher_id: string; hours_per_week: number }[] => {
+  const existingSubjects: any[] = cls?.subjects || [];
+
+  if (Array.isArray(existingSubjects) && existingSubjects.length > 0) {
+    return existingSubjects.map((s: any) => {
+      let tid = normTeacherId(s.teacher_id, allTeachers);
+      const subjObj = globalSubjects.find(sub => String(sub._id) === String(s.subject_id));
+      const subjName = subjObj?.name || '';
+
+      if (!tid && subjName) {
+        const matchingTeacher = allTeachers.find(t =>
+          t.subjects?.some(sName =>
+            sName.toLowerCase().includes(subjName.toLowerCase()) ||
+            subjName.toLowerCase().includes(sName.toLowerCase())
+          )
+        );
+        if (matchingTeacher) tid = String(matchingTeacher._id);
+        else if (allTeachers.length > 0) tid = String(allTeachers[0]._id);
+      }
+
+      return {
+        subject_id: String(s.subject_id),
+        teacher_id: tid || '',
+        hours_per_week: resolveSubjectHoursForClass(s, cls, globalSubjects)
+      };
+    }).filter(s => s.hours_per_week > 0);
+  }
+
+  const generatedSubjects: { subject_id: string; teacher_id: string; hours_per_week: number }[] = [];
+
+  for (const sub of globalSubjects) {
+    const hrs = resolveSubjectHoursForClass({ subject_id: sub._id }, cls, globalSubjects);
+    if (hrs > 0) {
+      const matchingTeacher = allTeachers.find(t =>
+        t.subjects?.some(sName =>
+          sName.toLowerCase().includes(sub.name.toLowerCase()) ||
+          sub.name.toLowerCase().includes(sName.toLowerCase())
+        )
+      ) || (allTeachers.length > 0 ? allTeachers[0] : null);
+
+      generatedSubjects.push({
+        subject_id: String(sub._id),
+        teacher_id: matchingTeacher ? String(matchingTeacher._id) : '',
+        hours_per_week: hrs
+      });
+    }
+  }
+
+  return generatedSubjects;
+};
+
+const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, classes: initialClasses, subjects, onBack, showPopup }) => {
+  const [classesList, setClassesList] = useState<Class[]>(initialClasses);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [calendar, setCalendar] = useState<Calendar>(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
   const [loading, setLoading] = useState(false);
 
-  // Special Calendar Events (Holidays & Makeup days) State
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(getCurrentAcademicYear());
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [eventDate, setEventDate] = useState('');
-  const [eventType, setEventType] = useState<'holiday' | 'makeup'>('holiday');
-  const [eventTitle, setEventTitle] = useState('');
-  const [replacementDayOfWeek, setReplacementDayOfWeek] = useState<number>(0);
-  const [submittingEvent, setSubmittingEvent] = useState(false);
+  useEffect(() => {
+    setClassesList(initialClasses);
+  }, [initialClasses]);
 
-  const fetchEvents = async () => {
-    setEventsLoading(true);
-    try {
-      const url = selectedAcademicYear === 'all'
-        ? '/api/calendar-events'
-        : `/api/calendar-events?academic_year=${encodeURIComponent(selectedAcademicYear)}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setCalendarEvents(data);
-      }
-    } catch (err) {
-      console.error('Error fetching calendar events:', err);
-    } finally {
-      setEventsLoading(false);
+  // Teacher Availability State
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [selectedTeacherForAvail, setSelectedTeacherForAvail] = useState<string>('');
+  const [teacherAvailGrid, setTeacherAvailGrid] = useState<boolean[][]>(
+    Array(5).fill(null).map(() => Array(lessonsPerDay).fill(true))
+  );
+  const [savingAvail, setSavingAvail] = useState(false);
+
+  // Load calendar when class selection changes
+  useEffect(() => {
+    if (!selectedClassId) {
+      setCalendar(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
+      return;
     }
-  };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [selectedAcademicYear]);
-
-  useEffect(() => {
-    if (!selectedClassId) return;
-    const fetchCalendar = async () => {
-      try {
-        const res = await fetch(`/api/classes`);
-        if (res.ok) {
-          const data = await res.json();
-          const found = data.find((cls: any) => cls._id === selectedClassId);
-          if (found && found.calendar && Array.isArray(found.calendar) && found.calendar.length === 5) {
-            setCalendar(found.calendar.map((day: any) => Array.isArray(day) ? day.map((cell: any) => {
-              let teacherId = cell.teacher_id ? String(cell.teacher_id) : '';
-              if (!teacherId && cell.subject_id && Array.isArray(found.subjects)) {
-                const autoMatch = found.subjects.find((s: any) => String(s.subject_id) === String(cell.subject_id));
-                if (autoMatch && autoMatch.teacher_id) {
-                  teacherId = String(autoMatch.teacher_id);
-                }
-              }
-              return {
-                subject_id: cell.subject_id ? String(cell.subject_id) : '',
-                teacher_id: teacherId
-              };
-            }) : Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
-          } else {
-            setCalendar(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
-          }
+    const currentClass = classesList.find(c => c._id === selectedClassId);
+    if (currentClass && currentClass.calendar && Array.isArray(currentClass.calendar) && currentClass.calendar.length === 5) {
+      const formattedCal = currentClass.calendar.map(dayArr => {
+        if (!Array.isArray(dayArr)) return Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' });
+        const padded = [...dayArr];
+        while (padded.length < lessonsPerDay) {
+          padded.push({ subject_id: '', teacher_id: '' });
         }
-      } catch (err) {
-        setCalendar(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
-      }
-    };
-    fetchCalendar();
-  }, [selectedClassId]);
-
-  const handleClassSelect = (classId: string) => {
-    setSelectedClassId(classId);
-  };
+        return padded.slice(0, lessonsPerDay);
+      });
+      setCalendar(formattedCal);
+    } else {
+      setCalendar(Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' })));
+    }
+  }, [selectedClassId, classesList]);
 
   const handleCellChange = (dayIdx: number, lessonIdx: number, field: 'subject_id' | 'teacher_id', value: string) => {
     setCalendar(prev => {
-      const updated = prev.map(row => row.slice());
-      updated[dayIdx][lessonIdx] = { ...updated[dayIdx][lessonIdx], [field]: value };
+      const updated = prev.map(row => [...row]);
+      const currentCell = { ...updated[dayIdx][lessonIdx] };
+
+      if (field === 'subject_id') {
+        currentCell.subject_id = value;
+        const currentClassObj = classesList.find(c => c._id === selectedClassId);
+        const assignedSubject = currentClassObj?.subjects?.find(s => String(s.subject_id) === String(value));
+        if (assignedSubject && assignedSubject.teacher_id) {
+          currentCell.teacher_id = String(assignedSubject.teacher_id);
+        } else {
+          currentCell.teacher_id = '';
+        }
+      } else {
+        currentCell.teacher_id = value;
+      }
+
+      updated[dayIdx][lessonIdx] = currentCell;
       return updated;
     });
   };
 
-  const handleSave = async () => {
-    if (!selectedClassId) return;
+  const handleSaveCalendar = async () => {
+    if (!selectedClassId) {
+      showPopup('გთხოვთ ჯერ აირჩიოთ კლასი', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch('/api/class/set-calendar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: selectedClassId, calendar }),
+        body: JSON.stringify({
+          class_id: selectedClassId,
+          calendar: calendar,
+        }),
       });
+
       if (res.ok) {
-        showPopup('კალენდარი წარმატებით შეინახა!', 'success');
+        showPopup('კალენდარი წარმატებით შენახულია!', 'success');
+        setClassesList(prev => prev.map(c => c._id === selectedClassId ? { ...c, calendar } : c));
       } else {
-        showPopup('კალენდარის შენახვა ვერ მოხერხდა.', 'error');
+        const data = await res.json();
+        showPopup(data.message || 'შენახვა ვერ მოხერხდა', 'error');
       }
     } catch (err) {
-      showPopup('შეცდომა კალენდარის შენახვისას.', 'error');
+      showPopup('სერვერთან დაკავშირება ვერ მოხერხდა', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventDate || !eventTitle.trim()) {
-      showPopup('გთხოვთ მიუთითოთ თარიღი და დასახელება', 'error');
-      return;
-    }
-
-    setSubmittingEvent(true);
+  const handleClearCurrentClassCalendar = async () => {
+    if (!selectedClassId) return;
+    if (!confirm('ნამდვილად გსურთ არჩეული კლასის განრიგის სრულად წაშლა/გასუფთავება?')) return;
+    setLoading(true);
     try {
-      const res = await fetch('/api/calendar-events', {
+      const emptyCal = Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' }));
+      const res = await fetch('/api/class/set-calendar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: eventDate,
-          type: eventType,
-          title: eventTitle.trim(),
-          replacementDayOfWeek: eventType === 'makeup' ? replacementDayOfWeek : undefined,
-          academicYear: selectedAcademicYear !== 'all' ? selectedAcademicYear : undefined,
+          class_id: selectedClassId,
+          calendar: emptyCal,
         }),
       });
 
       if (res.ok) {
-        showPopup('დღის სტატუსი წარმატებით დაემატა/განახლდა!', 'success');
-        setEventDate('');
-        setEventTitle('');
-        fetchEvents();
+        showPopup('არჩეული კლასის ცხრილი წარმატებით გასუფთავდა!', 'success');
+        setCalendar(emptyCal);
+        setClassesList(prev => prev.map(c => c._id === selectedClassId ? { ...c, calendar: emptyCal } : c));
       } else {
-        const data = await res.json();
-        showPopup(data.message || 'შეცდომა დღის დამატებისას', 'error');
+        showPopup('გასუფთავება ვერ მოხერხდა', 'error');
       }
     } catch (err) {
-      showPopup('სერვერთან დაკავშირება ვერ მოხერხდა', 'error');
+      showPopup('შეცდომა გასუფთავებისას', 'error');
     } finally {
-      setSubmittingEvent(false);
+      setLoading(false);
     }
   };
 
-  const handleDeleteEvent = async (date: string) => {
-    if (!confirm(`ნამდვილად გსურთ ${date} თარიღის მოვლენის წაშლა?`)) return;
-
+  const handleClearAllClassesCalendars = async () => {
+    if (!confirm('⚠️ ყურადღება! ნამდვილად გსურთ სკოლის ყველა კლასის განრიგის სრულად წაშლა/გასუფთავება?')) return;
+    setLoading(true);
     try {
-      const res = await fetch(`/api/calendar-events?date=${encodeURIComponent(date)}`, {
-        method: 'DELETE',
+      const emptyCal = Array(5).fill(null).map(() => Array(lessonsPerDay).fill({ subject_id: '', teacher_id: '' }));
+      const emptyCalendarsMap: Record<string, CalendarEntry[][]> = {};
+      classesList.forEach(cls => {
+        emptyCalendarsMap[cls._id] = emptyCal;
+      });
+
+      const res = await fetch('/api/class/set-calendars-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendars: emptyCalendarsMap })
+      });
+
+      if (res.ok) {
+        showPopup('🚀 სკოლის ყველა კლასის განრიგი წარმატებით წაიშალა/გასუფთავდა!', 'success');
+        setCalendar(emptyCal);
+        setClassesList(prev => prev.map(c => ({ ...c, calendar: emptyCal })));
+      } else {
+        showPopup('ყველა კლასის გასუფთავება ვერ მოხერხდა', 'error');
+      }
+    } catch (err) {
+      showPopup('შეცდომა გასუფთავებისას', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openTeacherAvailModal = (teacherId: string) => {
+    setSelectedTeacherForAvail(teacherId);
+    const target = teachers.find(t => t._id === teacherId || t.user_ID === teacherId);
+    if (target && (target as any).availability && Array.isArray((target as any).availability) && (target as any).availability.length === 5) {
+      setTeacherAvailGrid((target as any).availability);
+    } else {
+      setTeacherAvailGrid(Array(5).fill(null).map(() => Array(lessonsPerDay).fill(true)));
+    }
+  };
+
+  const handleSaveTeacherAvail = async () => {
+    if (!selectedTeacherForAvail) {
+      showPopup('აირჩიეთ მასწავლებელი', 'error');
+      return;
+    }
+    setSavingAvail(true);
+    try {
+      const res = await fetch('/api/teacher/update-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacher_id: selectedTeacherForAvail,
+          availability: teacherAvailGrid
+        })
       });
       if (res.ok) {
-        showPopup('მოვლენა წარმატებით წაიშალა', 'success');
-        fetchEvents();
+        showPopup('მასწავლებლის ხელმისაწვდომობა შენახულია!', 'success');
+        setShowAvailabilityModal(false);
       } else {
-        showPopup('მოვლენის წაშლა ვერ მოხერხდა', 'error');
+        showPopup('შენახვა ვერ მოხერხდა', 'error');
       }
     } catch (err) {
-      showPopup('შეცდომა წაშლისას', 'error');
+      showPopup('შეცდომა შენახვისას', 'error');
+    } finally {
+      setSavingAvail(false);
     }
   };
 
-  const sortedAndFilteredClasses = [...classes]
+  const sortedAndFilteredClasses = [...classesList]
     .sort((a, b) => {
       const gradeA = parseInt(a.classname.match(/\d+/)?.[0] || '0', 10);
       const gradeB = parseInt(b.classname.match(/\d+/)?.[0] || '0', 10);
@@ -252,63 +497,47 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
         <h2 className="admin-view-title">კალენდრისა და განრიგის მართვა</h2>
       </header>
 
-      {/* Mode Switcher Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', justifyContent: 'center' }}>
-        <button
-          onClick={() => setActiveTab('timetable')}
-          style={{
-            padding: '12px 24px',
-            borderRadius: '12px',
-            border: activeTab === 'timetable' ? 'none' : '1px solid #cbd5e1',
-            backgroundColor: activeTab === 'timetable' ? '#2563eb' : '#ffffff',
-            color: activeTab === 'timetable' ? '#ffffff' : '#475569',
-            fontWeight: 800,
-            cursor: 'pointer',
-            fontSize: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: activeTab === 'timetable' ? '0 4px 14px rgba(37,99,235,0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <CalendarIcon size={18} />
-          კლასების განრიგი
-        </button>
-        <button
-          onClick={() => setActiveTab('events')}
-          style={{
-            padding: '12px 24px',
-            borderRadius: '12px',
-            border: activeTab === 'events' ? 'none' : '1px solid #cbd5e1',
-            backgroundColor: activeTab === 'events' ? '#7c3aed' : '#ffffff',
-            color: activeTab === 'events' ? '#ffffff' : '#475569',
-            fontWeight: 800,
-            cursor: 'pointer',
-            fontSize: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: activeTab === 'events' ? '0 4px 14px rgba(124,58,237,0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <CalendarIcon size={18} />
-          დასვენების & აღდგენის დღეები
-        </button>
-      </div>
+      {/* Class Select & Action Buttons Bar */}
+      <div className="admin-form-container" style={{ width: '100%', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '240px' }}>
+                <label className="admin-label">აირჩიეთ კლასი:</label>
+                <select
+                  className="admin-input"
+                  value={selectedClassId || ''}
+                  onChange={(e) => setSelectedClassId(e.target.value || null)}
+                >
+                  <option value="">-- აირჩიეთ კლასი --</option>
+                  {sortedAndFilteredClasses.map(cls => (
+                    <option key={cls._id} value={cls._id}>
+                      {cls.classname}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-      {activeTab === 'timetable' ? (
-        <>
-          <div className="admin-form-container" style={{ maxWidth: 'none', marginBottom: '30px', padding: '25px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <label className="admin-label" style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>კლასი: </label>
-              <select className="admin-select" style={{ maxWidth: '300px', background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }} value={selectedClassId || ''} onChange={e => handleClassSelect(e.target.value)}>
-                <option value='' disabled>აირჩიეთ კლასი</option>
-                {sortedAndFilteredClasses.map(cls => (
-                  <option key={cls._id} value={cls._id}>{cls.classname}</option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAvailabilityModal(true)}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="მასწავლებლების თავისუფალი/დაკავებული დღეების და საათების მართვა"
+                >
+                  ⚙️ მასწავლებლის საათები/დღეები
+                </button>
+              </div>
             </div>
           </div>
 
@@ -326,7 +555,7 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                   </thead>
                   <tbody>
                     {[...Array(lessonsPerDay)].map((_, lessonIdx) => {
-                      const currentClassObj = classes.find(c => c._id === selectedClassId);
+                      const currentClassObj = classesList.find(c => c._id === selectedClassId);
                       const classSubjectIds = currentClassObj?.subjects?.map(s => s.subject_id.toString()) || [];
                       const filteredClassSubjects = subjects.filter(sub => classSubjectIds.includes(sub._id.toString()));
 
@@ -346,35 +575,31 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                               <td key={dayIdx} style={{ minWidth: '180px', padding: '8px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                   <select
-                                    className="calendar-select"
-                                    value={calendar[dayIdx][lessonIdx]?.subject_id || ''}
-                                    onChange={e => {
-                                      const newSubjId = e.target.value;
-                                      let autoTeacher = '';
-                                      if (newSubjId && currentClassObj?.subjects) {
-                                        const match = currentClassObj.subjects.find(s => String(s.subject_id) === String(newSubjId));
-                                        if (match && match.teacher_id) {
-                                          autoTeacher = String(match.teacher_id);
-                                        }
-                                      }
-                                      handleCellChange(dayIdx, lessonIdx, 'subject_id', newSubjId);
-                                      handleCellChange(dayIdx, lessonIdx, 'teacher_id', autoTeacher);
-                                    }}
+                                    className="admin-input"
+                                    style={{ fontSize: '13px', padding: '6px', margin: 0, fontWeight: 700 }}
+                                    value={cellSubjectId || ''}
+                                    onChange={(e) => handleCellChange(dayIdx, lessonIdx, 'subject_id', e.target.value)}
                                   >
-                                    <option value=''>საგანი</option>
+                                    <option value="">-- საგანი --</option>
                                     {filteredClassSubjects.map(sub => (
-                                      <option key={sub._id} value={sub._id}>{sub.name}</option>
+                                      <option key={sub._id} value={sub._id}>
+                                        {sub.name}
+                                      </option>
                                     ))}
                                   </select>
+
                                   <select
-                                    className="calendar-select"
+                                    className="admin-input"
+                                    style={{ fontSize: '12px', padding: '4px', margin: 0, opacity: cellSubjectId ? 1 : 0.4 }}
                                     value={calendar[dayIdx][lessonIdx]?.teacher_id || ''}
-                                    onChange={e => handleCellChange(dayIdx, lessonIdx, 'teacher_id', e.target.value)}
+                                    onChange={(e) => handleCellChange(dayIdx, lessonIdx, 'teacher_id', e.target.value)}
                                     disabled={!cellSubjectId}
                                   >
-                                    <option value=''>მასწავლებელი</option>
+                                    <option value="">-- მასწავლებელი --</option>
                                     {filteredClassTeachers.map(t => (
-                                      <option key={t._id} value={t._id}>{t.name} {t.surname}</option>
+                                      <option key={t._id} value={t._id}>
+                                        {t.name} {t.surname}
+                                      </option>
                                     ))}
                                   </select>
                                 </div>
@@ -387,223 +612,142 @@ const AdminCalendarManager: React.FC<AdminCalendarManagerProps> = ({ teachers, c
                   </tbody>
                 </table>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '25px' }}>
-                <button className="admin-submit-btn" onClick={handleSave} disabled={loading} style={{ width: 'auto', padding: '12px 40px', background: '#2563eb', color: '#ffffff', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800 }}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={handleClearCurrentClassCalendar}
+                  disabled={loading}
+                  style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#dc2626',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <TrashIcon size={18} />
+                  ამ კლასის ცხრილის გასუფთავება
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-submit-btn"
+                  style={{ background: '#2563eb', color: '#ffffff', width: 'auto', padding: '12px 32px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onClick={handleSaveCalendar}
+                  disabled={loading}
+                >
+                  <SaveIcon size={18} />
                   {loading ? 'ინახება...' : 'განრიგის შენახვა'}
                 </button>
               </div>
             </div>
           )}
-        </>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-zoom-in">
-          {/* Year Filter Header */}
-          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <FilterIcon size={20} style={{ color: '#7c3aed' }} />
-              <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '15px' }}>სასწავლო წელი:</span>
+
+      {/* Teacher Availability Modal */}
+      {showAvailabilityModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#ffffff', borderRadius: '24px', padding: '28px', maxWidth: '700px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#0f172a' }}>⚙️ მასწავლებლის ხელმისაწვდომობა</h3>
+              <button onClick={() => setShowAvailabilityModal(false)} style={{ border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label className="admin-label">აირჩიეთ მასწავლებელი:</label>
               <select
-                className="admin-select"
-                style={{ width: 'auto', minWidth: '180px', background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                value={selectedAcademicYear}
-                onChange={e => setSelectedAcademicYear(e.target.value)}
+                className="admin-input"
+                value={selectedTeacherForAvail}
+                onChange={e => openTeacherAvailModal(e.target.value)}
               >
-                <option value="all">ყველა წელი</option>
-                {availableAcademicYears.map(yr => (
-                  <option key={yr} value={yr}>{yr} სასწავლო წელი</option>
+                <option value="">-- აირჩიეთ --</option>
+                {teachers.map(t => (
+                  <option key={t._id} value={t._id}>
+                    {t.name} {t.surname}
+                  </option>
                 ))}
               </select>
             </div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-              ყოველ სასწავლო წელს აქვს თავისი უნიკალური დასვენებისა და აღდგენის განრიგი.
-            </div>
-          </div>
 
-          {/* Add / Edit Form Card */}
-          <div className="admin-form-container" style={{ maxWidth: 'none', padding: '25px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#0f172a', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <AddIcon size={22} style={{ color: '#7c3aed' }} />
-              ახალი სპეციალური დღის დამატება ({selectedAcademicYear !== 'all' ? `${selectedAcademicYear} წელი` : 'მიმდინარე წელი'})
-            </h3>
+            {selectedTeacherForAvail && (
+              <>
+                <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+                  დააჭირეთ უჯრებს იმ საათების მოსანიშნად, როცა მასწავლებელი <b>თავისუფალია (მწვანე)</b> ან <b>დაკავებულია/არ სცალია (წითელი)</b>:
+                </p>
 
-            <form onSubmit={handleAddEvent} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', alignItems: 'end' }}>
-              <div>
-                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>თარიღი:</label>
-                <input
-                  type="date"
-                  className="admin-input"
-                  style={{ colorScheme: 'light', color: '#0f172a', background: '#ffffff', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                  value={eventDate}
-                  onChange={e => setEventDate(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>დღის სტატუსი / ტიპი:</label>
-                <select
-                  className="admin-select"
-                  style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                  value={eventType}
-                  onChange={e => setEventType(e.target.value as 'holiday' | 'makeup')}
-                >
-                  <option value="holiday">დასვენების დღე (უქმე)</option>
-                  <option value="makeup">აღდგენის დღე (სასწავლო)</option>
-                </select>
-              </div>
-
-              {eventType === 'makeup' && (
-                <div>
-                  <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>რომელი დღის ცხრილით აღდგება:</label>
-                  <select
-                    className="admin-select"
-                    style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                    value={replacementDayOfWeek}
-                    onChange={e => setReplacementDayOfWeek(Number(e.target.value))}
-                  >
-                    {days.map((dayName, idx) => (
-                      <option key={idx} value={idx}>{dayName} (ცხრილი #{idx + 1})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="admin-label" style={{ color: '#0f172a', fontWeight: 800 }}>დასახელება / მიზეზი:</label>
-                <input
-                  type="text"
-                  className="admin-input"
-                  style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                  placeholder="მაგ. გიორგობა, ოთხშაბათის აღდგენა"
-                  value={eventTitle}
-                  onChange={e => setEventTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  className="admin-submit-btn"
-                  disabled={submittingEvent}
-                  style={{ width: '100%', height: '46px', padding: 0 }}
-                >
-                  {submittingEvent ? 'ინახება...' : 'შენახვა'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Special Events List Card */}
-          <div className="admin-list-container">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#0f172a', fontWeight: 900 }}>
-              დამატებული დასვენების და აღდგენის დღეები ({calendarEvents.length})
-            </h3>
-
-            {eventsLoading ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontWeight: 600 }}>იტვირთება...</div>
-            ) : calendarEvents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#64748b', fontWeight: 600 }}>
-                სპეციალური დღეები არ არის დამატებული არჩეული წლისთვის ({selectedAcademicYear})
-              </div>
-            ) : (
-              <div className="admin-table-wrapper">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>სასწავლო წელი</th>
-                      <th>თარიღი</th>
-                      <th>ტიპი</th>
-                      <th>დასახელება / მიზეზი</th>
-                      <th>აღდგენის ცხრილი</th>
-                      <th style={{ textAlign: 'center' }}>მოქმედება</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {calendarEvents.map((evt) => (
-                      <tr key={evt.date}>
-                        <td>
-                          <span style={{
-                            backgroundColor: '#f1f5f9',
-                            color: '#475569',
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: 700
-                          }}>
-                            {evt.academicYear || 'საერთო'}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 800, color: '#0f172a' }}>{evt.date}</td>
-                        <td>
-                          {evt.type === 'holiday' ? (
-                            <span style={{
-                              backgroundColor: '#fef2f2',
-                              color: '#dc2626',
-                              border: '1px solid #fca5a5',
-                              padding: '4px 12px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: 800,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}>
-                              დასვენება
-                            </span>
-                          ) : (
-                            <span style={{
-                              backgroundColor: '#f5f3ff',
-                              color: '#7c3aed',
-                              border: '1px solid #ddd6fe',
-                              padding: '4px 12px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: 800,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}>
-                              აღდგენა
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ color: '#0f172a', fontWeight: 600 }}>{evt.title}</td>
-                        <td>
-                          {evt.type === 'makeup' && evt.replacementDayOfWeek !== undefined ? (
-                            <span style={{ color: '#2563eb', fontWeight: 700 }}>
-                              {days[evt.replacementDayOfWeek]}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>—</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleDeleteEvent(evt.date)}
-                            style={{
-                              backgroundColor: '#fee2e2',
-                              color: '#dc2626',
-                              border: '1px solid #fca5a5',
-                              borderRadius: '8px',
-                              padding: '6px 12px',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '12px',
-                              fontWeight: 700
-                            }}
-                          >
-                            <TrashIcon size={14} /> წაშლა
-                          </button>
-                        </td>
+                <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>#</th>
+                        {days.map((d, i) => (
+                          <th key={i} style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}>{d}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {[...Array(lessonsPerDay)].map((_, lessonIdx) => (
+                        <tr key={lessonIdx}>
+                          <td style={{ padding: '6px', border: '1px solid #cbd5e1', fontWeight: 800 }}>{lessonIdx + 1}</td>
+                          {days.map((_, dayIdx) => {
+                            const isFree = teacherAvailGrid[dayIdx]?.[lessonIdx] ?? true;
+                            return (
+                              <td
+                                key={dayIdx}
+                                onClick={() => {
+                                  setTeacherAvailGrid(prev => {
+                                    const updated = prev.map(row => [...row]);
+                                    updated[dayIdx][lessonIdx] = !isFree;
+                                    return updated;
+                                  });
+                                }}
+                                style={{
+                                  padding: '10px',
+                                  border: '1px solid #cbd5e1',
+                                  background: isFree ? '#dcfce7' : '#fee2e2',
+                                  color: isFree ? '#15803d' : '#b91c1c',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                {isFree ? '✓ ეცლება' : '✕ დაკავებული'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setShowAvailabilityModal(false)} className="admin-cancel-btn">გაუქმება</button>
+              <button
+                onClick={handleSaveTeacherAvail}
+                disabled={savingAvail || !selectedTeacherForAvail}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                {savingAvail ? 'ინახება...' : 'შენახვა'}
+              </button>
+            </div>
           </div>
         </div>
       )}
