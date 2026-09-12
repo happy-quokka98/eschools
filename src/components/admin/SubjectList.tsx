@@ -53,6 +53,7 @@ const SubjectList: React.FC<SubjectListProps> = ({
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [classData, setClassData] = useState<Class | null>(null);
+    const [grades, setGrades] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState(false);
 
@@ -115,6 +116,14 @@ const SubjectList: React.FC<SubjectListProps> = ({
                 const teachersRes = await fetch('/api/teacher/all');
                 const teachersData = await teachersRes.json();
                 setTeachers(teachersData);
+
+                let gradesUrl = `/api/grades?class_id=${classId}`;
+                if (selectedYear) {
+                    gradesUrl += `&year=${selectedYear}`;
+                }
+                const gradesRes = await fetch(gradesUrl);
+                const gradesData = await gradesRes.json();
+                setGrades(Array.isArray(gradesData) ? gradesData : []);
 
                 const classesRes = await fetch('/api/classes');
                 const classesData = await classesRes.json();
@@ -245,53 +254,102 @@ const SubjectList: React.FC<SubjectListProps> = ({
 
             <div className="admin-grid" style={{ gap: "30px" }}>
                 {subjectCards.length > 0 ? (
-                    subjectCards.map((card) => (
-                        <div
-                            key={card.subjectId}
-                            className="admin-card animate-zoom-in"
-                            onClick={() => onSubjectClick(card.subjectId, card.subjectName)}
-                            style={{ 
-                                minHeight: '160px', 
-                                justifyContent: 'center',
-                                background: '#ffffff',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '20px',
-                                padding: '24px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                position: 'relative',
-                                boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
-                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#ffffff';
-                                e.currentTarget.style.borderColor = '#2563eb';
-                                e.currentTarget.style.transform = 'translateY(-6px)';
-                                e.currentTarget.style.boxShadow = '0 16px 35px rgba(37, 99, 235, 0.18)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#ffffff';
-                                e.currentTarget.style.borderColor = '#e2e8f0';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.04)';
-                            }}
-                        >
-                            <div style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', marginBottom: '8px', textAlign: 'center' }}>
-                                {card.subjectName}
+                    subjectCards.map((card) => {
+                        const subjectGrades = grades.filter((g: any) => g.subject_id === card.subjectId);
+                        const totalGrades = subjectGrades.length;
+                        const absenceCount = subjectGrades.filter((g: any) => g.point === -2 || g.checked === false).length;
+                        const absencePct = totalGrades > 0 ? ((absenceCount / totalGrades) * 100).toFixed(1) : '0';
+
+                        const isNumericGrade = (g: any) => {
+                            const pt = typeof g.point === 'number' ? g.point : (typeof g.point === 'string' && !isNaN(parseInt(g.point, 10)) ? parseInt(g.point, 10) : -1);
+                            return pt >= 0 && pt <= 10 && !g.is_formative && g.point !== -3;
+                        };
+                        const numericGrades = subjectGrades.filter(isNumericGrade);
+                        const getPtVal = (g: any) => (typeof g.point === 'number' ? g.point : parseInt(g.point, 10));
+                        const avgScore = numericGrades.length > 0 
+                            ? (numericGrades.reduce((sum: number, g: any) => sum + getPtVal(g), 0) / numericGrades.length).toFixed(1) 
+                            : '-';
+
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const summativeDates = new Set(
+                            subjectGrades
+                                .filter((g: any) => {
+                                    if (g.pointType !== 3) return false;
+                                    if (g.date && g.date > todayStr) return false;
+                                    const isWrittenGrade = (typeof g.point === 'number' && g.point >= 0) || g.point === -3;
+                                    return isWrittenGrade;
+                                })
+                                .map((g: any) => g.date)
+                        );
+                        const summativeCount = summativeDates.size;
+
+                        return (
+                            <div
+                                key={card.subjectId}
+                                className="admin-card animate-zoom-in"
+                                onClick={() => onSubjectClick(card.subjectId, card.subjectName)}
+                                style={{ 
+                                    minHeight: '190px', 
+                                    justifyContent: 'center',
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '20px',
+                                    padding: '24px 20px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    position: 'relative',
+                                    boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+                                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.borderColor = '#2563eb';
+                                    e.currentTarget.style.transform = 'translateY(-6px)';
+                                    e.currentTarget.style.boxShadow = '0 16px 35px rgba(37, 99, 235, 0.18)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.borderColor = '#e2e8f0';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.04)';
+                                }}
+                            >
+                                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', marginBottom: '4px', textAlign: 'center' }}>
+                                    {card.subjectName}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                                    მასწავლებელი: <span style={{ color: '#2563eb', fontWeight: 800 }}>{card.teacherName}</span>
+                                </div>
+
+                                {/* Subject Stats Section */}
+                                <div style={{
+                                    width: '100%',
+                                    marginTop: '16px',
+                                    paddingTop: '12px',
+                                    borderTop: '1px dashed #e2e8f0',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                    gap: '8px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{ background: '#fef2f2', padding: '8px 4px', borderRadius: '10px', border: '1px solid #fee2e2' }}>
+                                        <div style={{ fontSize: '10px', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase' }}>გაცდენები</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 900, color: '#dc2626', marginTop: '2px' }}>{absencePct}%</div>
+                                    </div>
+                                    <div style={{ background: '#f0fdf4', padding: '8px 4px', borderRadius: '10px', border: '1px solid #dcfce7' }}>
+                                        <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase' }}>საშ. ნიშანი</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>{avgScore}</div>
+                                    </div>
+                                    <div style={{ background: '#eff6ff', padding: '8px 4px', borderRadius: '10px', border: '1px solid #dbeafe' }}>
+                                        <div style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700, textTransform: 'uppercase' }}>შემაჯამებელი</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 900, color: '#1d4ed8', marginTop: '2px' }}>{summativeCount}</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                                მასწავლებელი
-                            </div>
-                            <div style={{ fontSize: '16px', color: '#2563eb', fontWeight: 800, marginTop: '4px', textAlign: 'center' }}>
-                                {card.teacherName}
-                            </div>
-                            <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '11px', color: '#94a3b8', fontWeight: 800 }}>
-                                {new Date().getFullYear()}
-                            </div>
-                        </div>
-                    ))
+                        );
+                    })
                 ) : (
                     <div className="admin-form-container" style={{ gridColumn: '1 / -1', maxWidth: 'none', textAlign: 'center' }}>
                         ამ კლასში საგნები ვერ მოიძებნა

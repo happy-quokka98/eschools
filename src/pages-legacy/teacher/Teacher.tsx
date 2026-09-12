@@ -1382,10 +1382,12 @@ const Teacher: React.FC = () => {
                                 opacity: checked ? 1 : 0.5,
                                 width: '100%',
                                 maxWidth: '280px',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.15)',
-                                color: 'white',
-                                borderRadius: '8px'
+                                background: '#ffffff',
+                                border: '1.5px solid #cbd5e1',
+                                color: '#0f172a',
+                                fontWeight: 600,
+                                borderRadius: '8px',
+                                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)'
                               }}
                             />
                           ) : isProjectSubject ? (
@@ -1622,6 +1624,7 @@ const Teacher: React.FC = () => {
 
       let averageScore = 0;
       let attendancePercentage = 0;
+      let absenceCount = 0;
 
       if (selectedSemester === "წლიური") {
         // Calculate annual average: (first semester + second semester) / 2
@@ -1657,6 +1660,9 @@ const Teacher: React.FC = () => {
         ).length;
         attendancePercentage =
           totalGrades > 0 ? (attendedGrades / totalGrades) * 100 : 0;
+        absenceCount = studentGrades.filter(
+          (g) => g.point === -2 || g.checked === false
+        ).length;
       } else {
         // Calculate for specific semester
         const semesterGrades = getSemesterGrades(selectedSemester);
@@ -1680,11 +1686,15 @@ const Teacher: React.FC = () => {
         ).length;
         attendancePercentage =
           totalGrades > 0 ? (attendedGrades / totalGrades) * 100 : 0;
+        absenceCount = semesterGrades.filter(
+          (g) => g.point === -2 || g.checked === false
+        ).length;
       }
 
       return {
         averageScore: parseFloat(averageScore.toFixed(1)),
         attendancePercentage: parseFloat(attendancePercentage.toFixed(1)),
+        absenceCount,
       };
     };
 
@@ -1771,6 +1781,7 @@ const Teacher: React.FC = () => {
                     <th style={{ width: '60px', textAlign: 'center' }}>#</th>
                     <th>მოსწავლე</th>
                     <th style={{ textAlign: "center" }}>საშუალო ქულა</th>
+                    <th style={{ textAlign: "center" }}>გაცდენების რაოდენობა</th>
                     <th style={{ textAlign: "center" }}>სწრებადობა</th>
                   </tr>
                 </thead>
@@ -1784,6 +1795,11 @@ const Teacher: React.FC = () => {
                         <td style={{ textAlign: "center" }}>
                           <span className={`status-badge ${stats.averageScore >= 9 ? 'high' : stats.averageScore >= 7 ? 'medium' : 'low'}`}>
                             {stats.averageScore.toFixed(1)}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className={`status-badge ${stats.absenceCount === 0 ? 'high' : stats.absenceCount <= 3 ? 'medium' : 'low'}`}>
+                            {stats.absenceCount}
                           </span>
                         </td>
                         <td style={{ textAlign: "center" }}>

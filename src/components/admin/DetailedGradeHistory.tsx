@@ -336,6 +336,33 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
 
     const allDatesArr = rawDatesArr.filter(dateStr => isDateInSemester(dateStr, semesterFilter));
 
+    const displayGrades = filteredGrades.filter(g => allDatesArr.includes(g.date));
+    const totalDisplayGrades = displayGrades.length;
+    const totalAbsences = displayGrades.filter(g => g.point === -2 || g.checked === false).length;
+    const absencePct = totalDisplayGrades > 0 ? ((totalAbsences / totalDisplayGrades) * 100).toFixed(1) : '0';
+
+    const isNumericGrade = (g: Grade) => {
+        const pt = typeof g.point === 'number' ? g.point : (typeof g.point === 'string' && !isNaN(parseInt(g.point, 10)) ? parseInt(g.point, 10) : -1);
+        return pt >= 0 && pt <= 10 && !(g as any).is_formative && g.point !== -3;
+    };
+    const numericGrades = displayGrades.filter(isNumericGrade);
+    const avgGradeVal = numericGrades.length > 0 
+        ? (numericGrades.reduce((sum, g) => sum + (typeof g.point === 'number' ? g.point : parseInt(g.point, 10)), 0) / numericGrades.length).toFixed(1)
+        : '-';
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const summativeDates = new Set(
+        displayGrades
+            .filter(g => {
+                if (g.pointType !== 3) return false;
+                if (g.date && g.date > todayStr) return false;
+                const isWrittenGrade = (typeof g.point === 'number' && g.point >= 0) || g.point === -3;
+                return isWrittenGrade;
+            })
+            .map(g => g.date)
+    );
+    const totalSummatives = summativeDates.size;
+
     const studentDateGrades: { [studentId: string]: { [date: string]: Grade[] } } = {};
     const datesPointTypes: { [date: string]: number } = {};
 
@@ -352,6 +379,10 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
     });
 
     const handleDeleteDay = async (dateToDelete: string) => {
+        if (!isAdmin) {
+            alert('დღის წაშლის უფლება აქვს მხოლოდ ადმინისტრატორს.');
+            return;
+        }
         if (!isDateEditableForUser(dateToDelete, isAdmin)) {
             alert('მასწავლებელს დღის მონაცემების წაშლა შეუძლია მხოლოდ ბოლო 2 კვირის (14 დღის) ვადით. ჩასასწორებლად მიმართეთ ადმინისტრაციას.');
             return;
@@ -724,6 +755,75 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                     </div>
                 </div>
 
+                {/* Stats Summary Banner */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '20px',
+                    flexWrap: 'wrap',
+                    margin: '4px 0 8px 0'
+                }}>
+                    <div style={{
+                        background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2',
+                        border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.3)' : '#fee2e2'}`,
+                        padding: '10px 20px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        <span style={{ fontSize: '18px' }}>🚨</span>
+                        <div>
+                            <div style={{ fontSize: '11px', color: isDark ? '#fca5a5' : '#ef4444', fontWeight: 800, textTransform: 'uppercase' }}>
+                                გაცდენების %
+                            </div>
+                            <div style={{ fontSize: '16px', fontWeight: 900, color: isDark ? '#f87171' : '#dc2626' }}>
+                                {absencePct}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#f0fdf4',
+                        border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.3)' : '#dcfce7'}`,
+                        padding: '10px 20px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        <span style={{ fontSize: '18px' }}>📊</span>
+                        <div>
+                            <div style={{ fontSize: '11px', color: isDark ? '#86efac' : '#16a34a', fontWeight: 800, textTransform: 'uppercase' }}>
+                                საშუალო ნიშანი
+                            </div>
+                            <div style={{ fontSize: '16px', fontWeight: 900, color: isDark ? '#4ade80' : '#15803d' }}>
+                                {avgGradeVal}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                        border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : '#dbeafe'}`,
+                        padding: '10px 20px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        <span style={{ fontSize: '18px' }}>📝</span>
+                        <div>
+                            <div style={{ fontSize: '11px', color: isDark ? '#93c5fd' : '#2563eb', fontWeight: 800, textTransform: 'uppercase' }}>
+                                დაწერილი შემაჯამებლები
+                            </div>
+                            <div style={{ fontSize: '16px', fontWeight: 900, color: isDark ? '#60a5fa' : '#1d4ed8' }}>
+                                {totalSummatives}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Table Matrix Grid */}
                 <div style={{
                     width: '100%',
@@ -789,42 +889,64 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {students.length > 0 ? students.map((student, idx) => (
-                                <tr key={student._id}>
-                                    {/* Student Sticky Name Column */}
-                                    <td style={{
-                                        fontWeight: 700,
-                                        color: '#0f172a',
-                                        position: 'sticky',
-                                        left: 0,
-                                        zIndex: 5,
-                                        background: '#ffffff',
-                                        borderRight: '2px solid #e2e8f0',
-                                        borderBottom: '1px solid #e2e8f0',
-                                        padding: '14px 18px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0f172a" style={{ flexShrink: 0 }}>
-                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                                            </svg>
-                                            <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>
-                                                {student.name} {student.surname}
-                                                {(student as any).isTransferred && (
-                                                    <span style={{
-                                                        marginLeft: '6px',
-                                                        fontSize: '11px',
-                                                        background: '#fee2e2',
-                                                        color: '#dc2626',
-                                                        padding: '2px 6px',
-                                                        borderRadius: '6px',
-                                                        fontWeight: 700
-                                                    }}>
-                                                        (გადასული)
+                            {students.length > 0 ? students.map((student, idx) => {
+                                const studentAbsenceCount = allDatesArr.reduce((count, date) => {
+                                    const gradeList = studentDateGrades[student._id]?.[date] || [];
+                                    const isAbsent = gradeList.some(g => g.point === -2 || g.checked === false);
+                                    return count + (isAbsent ? 1 : 0);
+                                }, 0);
+
+                                return (
+                                    <tr key={student._id}>
+                                        {/* Student Sticky Name Column */}
+                                        <td style={{
+                                            fontWeight: 700,
+                                            color: '#0f172a',
+                                            position: 'sticky',
+                                            left: 0,
+                                            zIndex: 5,
+                                            background: '#ffffff',
+                                            borderRight: '2px solid #e2e8f0',
+                                            borderBottom: '1px solid #e2e8f0',
+                                            padding: '14px 18px',
+                                            minWidth: '260px'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#0f172a" style={{ flexShrink: 0 }}>
+                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                                    </svg>
+                                                    <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>
+                                                        {student.name} {student.surname}
+                                                        {(student as any).isTransferred && (
+                                                            <span style={{
+                                                                marginLeft: '6px',
+                                                                fontSize: '11px',
+                                                                background: '#fee2e2',
+                                                                color: '#dc2626',
+                                                                padding: '2px 6px',
+                                                                borderRadius: '6px',
+                                                                fontWeight: 700
+                                                            }}>
+                                                                (გადასული)
+                                                            </span>
+                                                        )}
                                                     </span>
-                                                )}
-                                            </span>
-                                        </div>
-                                    </td>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: '12px',
+                                                    fontWeight: 800,
+                                                    background: studentAbsenceCount > 0 ? '#fee2e2' : '#f1f5f9',
+                                                    color: studentAbsenceCount > 0 ? '#dc2626' : '#64748b',
+                                                    padding: '3px 8px',
+                                                    borderRadius: '8px',
+                                                    whiteSpace: 'nowrap',
+                                                    flexShrink: 0
+                                                }} title="გაცდენების რიცხვითი რაოდენობა">
+                                                    {studentAbsenceCount} გაცდენა
+                                                </span>
+                                            </div>
+                                        </td>
 
                                     {/* Date Cells */}
                                     {allDatesArr.map(date => {
@@ -896,7 +1018,8 @@ const DetailedGradeHistory: React.FC<DetailedGradeHistoryProps> = ({
                                         );
                                     })}
                                 </tr>
-                            )) : (
+                            );
+                        }) : (
                                 <tr>
                                     <td colSpan={allDatesArr.length + 1} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                                         მოსწავლეები ვერ მოიძებნა
